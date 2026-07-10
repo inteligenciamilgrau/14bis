@@ -1305,7 +1305,7 @@ const POIS=[
    ============================================================ */
 const player={pos:V3(-7,0,11.5),yaw:-0.55,pitch:0.08,vy:0,fly:false,grounded:false,eye:1.55};
 player.pos.y=groundH(-7,11.5)+player.eye;
-let thirdP=false;
+let thirdP=true;   // Santos Dumont visível em 3ª pessoa por padrão (V alterna)
 const keys={};
 addEventListener('keydown',e=>{keys[e.code]=true;
   if(e.code==='KeyE'&&!e.repeat){                                                  // estilo GTA
@@ -1403,9 +1403,10 @@ scene.traverse(o=>{if(o.isMesh){const ms=Array.isArray(o.material)?o.material:[o
     if(m.emissive)m.emissive.convertSRGBToLinear();});}});
 /* modo screenshot: index.html?shot=N (0-6) [&night] | ?cam=x,y,z,yaw,pitch */
 (function(){const q=new URLSearchParams(location.search);
-  if(q.has('shot')){document.getElementById('help').style.display='none';teleport(Math.min(6,Math.max(0,+q.get('shot')||0)));}
+  if(q.has('shot')){document.getElementById('help').style.display='none';thirdP=false;
+    teleport(Math.min(6,Math.max(0,+q.get('shot')||0)));}
   if(q.has('cam')){const v=q.get('cam').split(',').map(Number);
-    document.getElementById('help').style.display='none';
+    document.getElementById('help').style.display='none';thirdP=false;
     player.pos.set(v[0],v[1],v[2]);player.yaw=v[3]||0;player.pitch=v[4]||0;player.fly=true;}
   if(q.has('tp')){thirdP=true;updMode();}
   if(q.has('closed'))doors.forEach(d=>{d.isOpen=false;d.pivots.forEach((pv,i)=>pv.rotation.y=d.closedA[i]);});
