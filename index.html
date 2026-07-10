@@ -1175,9 +1175,11 @@ function crash14(){msg14('💥 Capotagem!','O Oiseau de Proie foi reconstruído 
   B14.position.set(-22,FY,38);B14.rotation.set(0,-Math.PI/2,0);}
 window._board14=function(){PLT.on=true;PLT.thr=0;player.fly=false;player.vy=0;
   player.yaw=B14.rotation.y;player.pitch=0.05;
+  PLT.wasTP=thirdP;thirdP=true;updMode();          // embarcou: visão externa por padrão
   document.getElementById('fly').style.display='block';
   msg14('A bordo do 14-bis!','W/S gás · ↑ célula p/ cima decola · ←/→ guinada · A/D inclinar o corpo (ailerons) · E desembarca parado');};
 window._exit14=function(){PLT.on=false;
+  thirdP=!!PLT.wasTP;updMode();                    // desembarcou: volta à câmera anterior
   document.getElementById('fly').style.display='none';
   const yw=B14.rotation.y;
   player.pos.set(B14.position.x+Math.cos(yw)*3,0,B14.position.z-Math.sin(yw)*3);
