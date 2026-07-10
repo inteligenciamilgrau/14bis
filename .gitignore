@@ -1,0 +1,27 @@
+# ---- Acervo de referência: NUNCA subir (direitos de imagem) ----
+fotos/
+../fotos/
+*.jpg
+*.jpeg
+*.jfif
+*.webp
+*.png
+# (se um dia quiser screenshots no README, libere um caminho específico, ex.:
+#  !docs/screenshots/*.png )
+
+# ---- Lixo de sistema operacional ----
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ---- Editores e IDEs ----
+.vscode/
+.idea/
+*.swp
+
+# ---- Temporários e logs ----
+*.log
+*.tmp
+*.bak
+scratch/
+node_modules/
