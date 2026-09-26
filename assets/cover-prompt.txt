@@ -1,0 +1,23 @@
+Use case: stylized-concept
+Asset type: widescreen 16:9 full-bleed background art for the main menu of a 3D exploration and flying game.
+Primary request: a cinematic illustrated cover that unites Alberto Santos-Dumont's 14-bis airplane and his Petrópolis house A Encantada.
+Scene/backdrop: golden late-afternoon sky over the forested mountains of Petrópolis, Brazil, with distant town rooftops in mist. At lower right, the recognizable small, narrow, white A Encantada house perched on a steep green hillside, salmon-colored steep metal roof, green shutters and external stair. In the right half of the sky, the 14-bis flying toward the viewer in a dynamic three-quarter view: historically distinctive rear double box-cell wings with pronounced dihedral, a long boom and small box canard at the FRONT, pusher propeller behind the wings, bamboo struts, translucent cream fabric, and a standing pilot in a wicker basket.
+Style/medium: premium hand-painted adventure game key art, grounded historical details, textured brushwork, gentle atmospheric depth; not a photograph or screenshot.
+Composition/framing: cinematic landscape; reserve the entire LEFT third as calm, darker blue-green sky and mountain haze with no prominent subject so a large logo and menu can be overlaid later. The aircraft remains fully visible in the RIGHT half, house in the lower RIGHT, safe crop for wide and narrow screens.
+Lighting/mood: warm amber sun rims the fabric and roof; adventurous, nostalgic, inviting.
+Color palette: deep forest green and midnight teal shadows, ivory fabric, copper roof, luminous gold sky.
+Constraints: image only, absolutely no text, no letters, no logos, no border, no UI, no watermark. The airplane must read as a real 14-bis canard, not a conventional modern biplane.
+
+Edit pass (final cover):
+Use case: precise-object-edit
+Asset type: historical adventure game cover background.
+Input images: Image 1 is the edit target.
+Primary request: correct ONLY the aircraft so it unmistakably has the silhouette of Santos-Dumont's 14-bis. Its large rear wings are double box-cell biplane wings with raised dihedral tips. A clearly visible long narrow bamboo truss projects FORWARD from the pilot basket to a SMALLER square box canard at the very front of the craft. The standing pilot remains in a wicker basket near the main wings; the single pusher propeller is behind him. Keep the aircraft in the right half of the sky, with its full outline visible.
+Constraints: preserve the landscape, A Encantada house, town, sunset, colors, painted style, and dark open space on the left exactly as they are. No added text, logo, border, interface, or watermark.
+
+Final correction (two main wings):
+Use case: precise-object-edit
+Asset type: historical adventure game cover background.
+Input image: edit the original cover art with the airplane that has TWO large main wings.
+Primary request: improve only the 14-bis airplane anatomy, preserving the beautiful original landscape and house. This is a front three-quarter view of a single airplane. KEEP BOTH OF ITS LARGE LEFT AND RIGHT MAIN WINGS, fully visible, equally prominent, one extending to each side of the central wicker pilot basket. Each main wing has two stacked cream fabric planes and boxed Hargrave-style end panels. Do not shorten, remove, shrink, or turn either left or right main wing into a canard. ADD A SEPARATE SMALLER box-shaped canard elevator in the FOREGROUND, ahead of the pilot, attached by a narrow, visible bamboo lattice boom projecting forward from the central basket. The pilot remains standing in the wicker basket and the pusher propeller remains behind him. Maintain a credible Santos-Dumont 14-bis silhouette: two huge main wing halves spanning left and right, plus the small forward canard as a third distinct structure.
+Invariants: same wide cover composition, dark empty left third for logo, sunset, mountains, Petrópolis town, A Encantada house at lower right, painterly lighting and colors. Keep airplane on right half but leave its entire left and right wings inside frame. No text, no logos, no UI, no border, no watermark.

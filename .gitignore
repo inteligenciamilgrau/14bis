@@ -6,6 +6,8 @@ fotos/
 *.jfif
 *.webp
 *.png
+!assets/cover.png
+!assets/versao-*.jpg
 # (se um dia quiser screenshots no README, libere um caminho específico, ex.:
 #  !docs/screenshots/*.png )
 

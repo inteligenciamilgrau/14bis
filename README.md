@@ -1,15 +1,28 @@
-# A Encantada — Casa 3D de Santos Dumont 🇧🇷✈️
+# 14 Bis do Dumont 🇧🇷✈️
 
-Reconstrução 3D navegável da casa de Santos Dumont em Petrópolis/RJ (1918),
-feita com Three.js a partir de um acervo local de fotos e plantas (não
+Jogo de exploração 3D da Encantada, casa de Santos Dumont em Petrópolis/RJ
+(1918), feito com Three.js a partir de um acervo local de fotos e plantas (não
 incluído no repositório por direitos de imagem) e da pesquisa documentada em
 [PESQUISA.md](PESQUISA.md). Inclui a réplica voável do **14-bis**
-([14BIS.md](14BIS.md)).
+([14BIS.md](14BIS.md)) e uma **serra de Petrópolis de ~5 × 5 km** para voar,
+com a cidade, os marcos históricos e a Mata Atlântica.
 
 ## Como abrir
-Basta dar **duplo clique em `index.html`** — funciona offline (o Three.js está
-em `lib/three.min.js`, e todas as texturas são geradas por código). Não há
+Basta dar **duplo clique em `index.html`**: ele abre a página de escolha de
+versão. Funciona offline (o Three.js está em `lib/three.min.js`, a capa é
+local e as texturas da cena são geradas por código). Não há
 nenhuma dependência externa: nada de CDN, fontes remotas ou rastreadores.
+
+## Versões
+| Arquivo | Versão | O que é |
+|---|---|---|
+| `index.html` | — | Página de abertura para escolher a versão |
+| `v2.html` | **Versão 2** (atual) | A serra de Petrópolis para voar, o 14-bis com física real, a cidade e os marcos (este README descreve esta versão) |
+| `v1.html` | **Versão 1.0** (histórico) | A primeira versão: a casa A Encantada e o 14-bis no Campo de Bagatelle, congelada como estava na tag git `v1.0` |
+
+A versão 1 é guardada só como registro, então não a edite. O código original
+dela fica na tag: `git checkout v1.0`. Links antigos com parâmetros
+(`index.html?shot=…`) são redirecionados para `v2.html`.
 
 ## Jogar online (GitHub Pages)
 O jogo é 100% estático, então basta servir a raiz do repositório:
@@ -19,28 +32,87 @@ O jogo é 100% estático, então basta servir a raiz do repositório:
 3. Acesse `https://SEU-USUARIO.github.io/NOME-DO-REPO/`.
 
 ## Controles
+No jogo, abra **⚙ Configurações** para consultar e remapear as teclas, além de
+acessar o mapa, o modo noturno e os destinos. As preferências ficam salvas no navegador.
+
 | Tecla | Ação |
 |---|---|
 | Clique | ativa o mouse (olhar em 1ª pessoa) |
 | `W A S D` | andar |
 | `Shift` | correr |
 | `Espaço` | pular |
-| `E` | abrir/fechar a porta ou as venezianas da janela mais próxima (estilo GTA) |
-| `V` | câmera em 3ª pessoa — jogue como o próprio Santos Dumont, de terno e panamá |
-| `F` | alternar modo voo (`Espaço` sobe, `Shift` desce) |
+| `E` | abrir/fechar a porta ou as venezianas da janela mais próxima; acender a lareira |
+| `F` | **entrar/sair do 14-bis** (como no GTA — para sair, pouse e pare) |
+| `C` | troca a câmera: 3ª pessoa (Santos Dumont de terno e panamá) → 3ª pessoa aberta → 1ª pessoa; pilotando, alterna os pontos de vista do 14-bis |
+| `V` | alterna rapidamente entre a câmera externa e a 1ª pessoa |
+| `G` | voo livre (`Espaço` sobe, `Shift` desce; acelera com a altura) |
+| `M` | mapa da serra (o minimapa com bússola e rumo aparece ao voar) |
+| `R` | pilotando: volta ao Campo de Bagatelle |
+| `↑ ↓ ← →` | pilotando: controlar a célula dianteira |
+| `Q / Z` | pilotando: ajustar o compensador |
+| `I / O` | pilotando: ignição / som do motor |
 | `N` | dia ↔ noite |
-| `1`–`8` | teleporte: Jardim, Rua & Relógio, Porão, Sala, Mezanino, Passarela, Observatório, **Campo de Bagatelle** |
-| `Esc` | libera o mouse (para usar os botões) |
+| `1`–`0` | teleporte: Jardim, Rua & Relógio, Porão, Sala, Mezanino, Passarela, Observatório, **Campo de Bagatelle**, **Centro** (Catedral), **Mirante** (capela do morro) |
+| `Esc` | abre/fecha Configurações e fecha o mapa |
 
 ## ✈️ Pilote o 14-bis!
 
 No **Campo de Bagatelle** (tecla `8`) está a réplica voável do *Oiseau de
-Proie* — documentação completa em [14BIS.md](14BIS.md). `E` junto ao cesto
-embarca; `W/S` gás; com velocidade, `↑` inclina a célula dianteira e o canard
-decola; `←/→` guinada; `A/D` **inclina o corpo do piloto** (é assim que os
-ailerons octogonais funcionavam!). Voe 25 m para a **Taça Archdeacon** e
-100 m para o **Prêmio do Aeroclube da França** — e cuidado para não capotar
-nem acertar a casa!
+Proie*, com as medidas e o desempenho do avião real — documentação completa
+e fontes em [14BIS.md](14BIS.md). `F` junto ao cesto embarca. `W` abre o gás:
+o mecânico gira a hélice ("Contato!"), os ajudantes seguram as asas até o
+Antoinette encher e soltam o avião. A ~37 km/h, `↑` levanta o canard e ele
+decola; `↓` abaixa; `Q/Z` compensam a alavanca; `←/→` giram a roda de direção
+à esquerda do cesto (guinada pela célula dianteira); `A/D` **inclina o corpo do piloto** (é assim que os
+ailerons octogonais funcionavam!); `I` corta a ignição para pousar, como em
+12/11/1906; `O` liga/desliga o som. Todas as teclas podem ser trocadas em
+**Configurações**.
+
+A física é de verdade: cada célula de seda, as paredes das células, o canard
+na junta cardã e os ailerons geram sustentação e arrasto; o motor de 50 cv
+move uma hélice de pás-remo com rendimento de época, e o avião voa entre
+~35 e ~47 km/h, sobe menos de 1 m/s e é instável em guinada (Santos Dumont:
+"como atirar uma flecha com as penas na frente") — corrija sempre com a
+roda de direção. Câmeras: `C` troca entre 9 pontos de vista (perseguição, lateral
+como nas fotos de 1906, frente, espectador no gramado, no canard, na ponta
+da asa, atrás da hélice, órbita livre, de cima), `V` vai para o cesto (olhos
+de Santos Dumont) e a **rodinha do mouse dá zoom** — de pertinho, até ver as mãos dele na
+roda de direção e na manete do acelerador. Os dados de voo aparecem num **painel de
+instrumentos de época** (mostradores de latão e esmalte, relógio Cartier, contadores de
+tambor); `H` esconde o painel. Voe 25 m para a **Taça
+Archdeacon** e 100 m para o **Prêmio do Aeroclube da França** — há marcos
+de 25, 60, 100 e 220 m ao lado da pista. Cuidado para não capotar, não
+arrastar a asa nem acertar a casa! A pista segue ~180 m além do campo,
+sempre livre, e a biruta mostra o vento de oeste: decole contra ele.
+
+## 🗺️ A serra para voar
+Um mapa de ~5,2 × 5,2 km (norte = vale em frente à casa) com relevo baixo de
+propósito — morros de 15–80 m e cristas de fundo em camadas que somem na
+névoa —, para que voando se veja longe. Marcos que servem de referência de
+navegação (todos com legenda histórica ao se aproximar):
+- **Catedral de São Pedro de Alcântara** — a agulha de ~70 m, farol do Centro,
+  com o **dirigível Nº 6** dando voltas por cima.
+- **Museu Imperial** (palácio rosa, jardim e alameda de palmeiras-imperiais),
+  **Palácio de Cristal** (acende à noite) e a **praça do Obelisco**.
+- O **rio Piabanha** em canal de pedra pelo Centro, seguindo para o norte até
+  as lavouras de **Itaipava**; o córrego que vem do leste ao lado da pista.
+- **Estação de Petrópolis** e a **ferrovia** com o trem de cremalheira subindo
+  a serra (a locomotiva empurra na subida), com ponte de treliça.
+- **Quitandinha**, o palácio normando diante do **lago com o formato do mapa
+  do Brasil**.
+- **Capela do morro** (em frente à casa, marca o norte), **Trono de Fátima**
+  (ao sul) e o **Dedo de Deus** na Serra dos Órgãos (nordeste).
+- ~700 casas coloniais e chalés, vilarejos, fazendas, lampiões, urubus nas
+  térmicas e ~45 mil árvores da Mata Atlântica — ipês-amarelos, quaresmeiras,
+  embaúbas e araucárias.
+
+## 🎬 Visual
+Céu físico em shader (sol dourado de fim de tarde, nuvens, estrelas, lua e
+Via Láctea), névoa de altitude com dispersão solar, sombras das montanhas
+pré-calculadas, luz ambiente do próprio céu (IBL), pós-processamento HDR
+(bloom, raios crepusculares, curva de filme ACES, gradação de cor, vinheta) e
+texturas procedurais com mapas de normais, calibradas pelas fotos do acervo.
+A resolução se ajusta sozinha se o computador não der conta.
 
 ## O que explorar
 - **Escada do Vencedor** (externa, verde): degraus recortados — só dá para
@@ -65,10 +137,14 @@ nem acertar a casa!
 - Chegue perto dos pontos de interesse para ver as **legendas históricas**.
 
 ## Extras para depuração
-`index.html?shot=N` (0–6) abre direto em um dos pontos de vista;
-`index.html?cam=x,y,z,yaw,pitch` posiciona a câmera livremente;
+`v2.html?shot=N` (0–9) abre direto em um dos pontos de vista;
+`v2.html?cam=x,y,z,yaw,pitch` posiciona a câmera livremente;
 `&night=1` modo noturno; `&closed=1` fecha portas e janelas;
-`&fire=0` lareira apagada; `&fly14=1` abre com o 14-bis em pleno voo.
+`&fire=0` lareira apagada; `&fly14=1` abre com o 14-bis em pleno voo;
+`&map=1` abre o mapa; `&dbg=1` mostra no DOM (`#dbg`) triângulos, draw
+calls e tempos de carga. Qualidade: `?hq` (resolução até 2×), `?nopost`
+(sem pós-processamento), `?lowshadow` (sombra 2048), `?noadapt` (sem
+ajuste automático de resolução).
 
 ## Licença
 Código sob [licença MIT](LICENSE). Inclui a biblioteca
