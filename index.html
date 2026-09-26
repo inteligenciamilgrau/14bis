@@ -18,10 +18,10 @@
     background:linear-gradient(180deg,rgba(5,22,28,.72) 0%,rgba(5,22,28,.86) 45%,rgba(5,22,28,.97) 100%),
       url('assets/cover.png') center top/cover no-repeat fixed,var(--teal)}
   .wrap{width:min(1180px,100%);margin:0 auto;padding:clamp(20px,4vw,48px) clamp(16px,4vw,40px) 40px}
-  header{text-align:center;margin-bottom:clamp(24px,4vw,44px)}
+  header{text-align:left;margin-bottom:clamp(24px,4vw,44px)}
   .eyebrow{margin:0 0 6px;color:var(--gold);font-size:12px;letter-spacing:.25em;font-weight:bold}
-  .logo{display:block;width:min(440px,100%);height:auto;margin:0 auto 8px;filter:drop-shadow(0 5px 16px #061a20a6)}
-  .lead{margin:0 auto;max-width:36ch;font-size:clamp(17px,1.6vw,21px);line-height:1.45;text-shadow:0 2px 12px #07171f}
+  .logo{display:block;width:min(440px,100%);height:auto;margin:0 0 8px;transform:translateX(-6%);/* o "14" começa a 6% da borda do SVG */ filter:drop-shadow(0 5px 16px #061a20a6)}
+  .lead{margin:0;max-width:44ch;font-size:clamp(17px,1.6vw,21px);line-height:1.45;text-shadow:0 2px 12px #07171f}
   .versions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(16px,2.6vw,32px)}
   .ver{display:flex;flex-direction:column;color:inherit;text-decoration:none;border:1px solid var(--line);border-radius:14px;
     overflow:hidden;background:rgba(8,30,36,.82);box-shadow:0 14px 40px #020c10aa;transition:transform .18s,border-color .18s,box-shadow .18s}
@@ -43,10 +43,13 @@
   .btn{margin-top:auto;align-self:flex-start;display:inline-flex;align-items:center;gap:10px;padding:12px 20px;border-radius:7px;
     font:700 16px Georgia,'Times New Roman',serif;border:1px solid #f7dd9e;color:#173027;background:linear-gradient(#efd194,#c89449);
     box-shadow:0 8px 22px #03141788;transition:filter .15s}
+  .credit{margin:auto 0 16px;padding-top:12px;border-top:1px solid rgba(239,207,145,.18);color:var(--gold);font-size:13px;line-height:1.5;font-style:italic}
+  .credit b{font-style:normal;color:var(--ink)}
+  .credit+.btn{margin-top:0}
   .ver:hover .btn,.ver:focus-visible .btn{filter:brightness(1.1)}
   .ver.old .btn{color:var(--ink);background:transparent;border-color:var(--gold2);box-shadow:none}
   .ver.old:hover .btn,.ver.old:focus-visible .btn{background:rgba(239,207,145,.12)}
-  footer{margin-top:36px;text-align:center;color:var(--muted);font-size:13px;line-height:1.7}
+  footer{margin-top:36px;text-align:left;color:var(--muted);font-size:13px;line-height:1.7}
   footer a{color:var(--gold)}
   @media(max-width:760px){.versions{grid-template-columns:1fr}.eyebrow{font-size:10px}
     body{background-attachment:scroll}}
@@ -78,6 +81,7 @@
           <li>Escada do Vencedor, que só se sobe com o pé direito</li>
           <li>Primeiro simulador do 14-bis</li>
         </ul>
+        <p class="credit">Criada pelo <b>Claude Fable 5</b></p>
         <span class="btn">▶ Jogar a versão 1</span>
       </div>
     </a>
@@ -96,6 +100,7 @@
           <li>Catedral, Museu Imperial, Palácio de Cristal, trem da serra e o dirigível&nbsp;Nº&nbsp;6</li>
           <li>Santos Dumont em 3ª pessoa, céu dinâmico, dia e noite</li>
         </ul>
+        <p class="credit">Continuação do projeto do Fable 5 pelo <b>Claude Opus 5.5</b></p>
         <span class="btn">▶ Jogar a versão 2</span>
       </div>
     </a>

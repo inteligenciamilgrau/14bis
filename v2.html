@@ -13,7 +13,7 @@
   #title img{display:block;width:clamp(140px,17vw,230px);height:auto;filter:drop-shadow(0 3px 8px rgba(0,0,0,.55))}
   #crosshair{top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;opacity:.7;display:none}
   /* caixa de notícias: papel de jornal de 1906 numa moldura de latão e couro, com parafusos — o mesmo estilo do painel do 14-bis */
-  #caption{bottom:86px;left:50%;transform:translateX(-50%);width:max-content;max-width:min(600px,calc(100vw - 48px));box-sizing:border-box;
+  #caption{bottom:86px;left:21px;width:max-content;max-width:min(600px,calc(100vw - 48px));box-sizing:border-box;
     text-align:center;color:#2a1c0c;text-shadow:none;padding:13px 30px 12px;border-radius:5px;opacity:0;transition:opacity .4s;pointer-events:none;
     background:radial-gradient(circle at 9px 9px,#f6e2a2 0 2px,#7a5418 2.6px,transparent 3.4px),
       radial-gradient(circle at calc(100% - 9px) 9px,#f6e2a2 0 2px,#7a5418 2.6px,transparent 3.4px),
@@ -908,13 +908,52 @@ const streetLight=new THREE.PointLight(0xffd9a0,0,16,2);streetLight.position.set
 const X=2.4, ZF=3.15, ZB=-3.15, Y1=2.2, Y2=4.85, EAVE=6.55, RIDGE=9.7;
 const slope=(RIDGE-EAVE)/(X+0.11), roofAng=Math.atan(slope);
 const spanX=X+0.11+0.55;                                   // até a ponta do beiral
+/* ---- física a pé nas escadas: o chão é UM raio vertical (pés+1,95 para baixo) e as paredes são raios curtos
+   (0,42 m) a pés+0,35/0,85/1,05 contra `solids`. Degrau vazado ou alternado deixa o raio cair no vão; por isso cada
+   escada leva peças INVISÍVEIS: rampa contínua pisável na linha dos bocéis, laterais sólidas até 1,1 m acima dela e um
+   miolo sólido 0,46 m abaixo dela (não barra quem sobe andando; barra quem entra por baixo e freia quem sobe correndo) ---- */
+const ghostM=new THREE.MeshBasicMaterial({color:0xff00ff});
+function ghost(g){const m=new THREE.Mesh(g,ghostM);m.visible=false;m.castShadow=m.receiveShadow=false;scene.add(m);return m;}
+// lâmina sólida: polígono pts=[[s,y],...] (s = distância horizontal a partir de A na direção u; y absoluto),
+// extrudada de off−t/2 a off+t/2 para o lado n=(−u.z,0,u.x)
+function plate(pts,A,u,off,t,mat){const s=new THREE.Shape();pts.forEach((p,i)=>i?s.lineTo(p[0],p[1]):s.moveTo(p[0],p[1]));
+  const g=new THREE.ExtrudeGeometry(s,{depth:t,bevelEnabled:false}),n=V3(-u.z,0,u.x);
+  const m=mat?new THREE.Mesh(g,mat):ghost(g);if(mat){m.castShadow=m.receiveShadow=true;scene.add(m);}
+  m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(u,V3(0,1,0),n));
+  m.position.set(A.x+n.x*(off-t/2),0,A.z+n.z*(off-t/2));return m;}
+function lamina(pts,A,u,off,t){const m=plate(pts,A,u,off,t);solids.push(m);return m;}
+// escada: A,B = pé e topo da linha dos bocéis; w = largura; o.sides = deslocamentos laterais das paredes-guarda;
+// o.yf = chão sob a escada (número ou função de s); o.ext = patamar plano além do topo; o.hd = altura livre a partir
+// da qual dá para passar por baixo (acima dela o miolo vira só uma laje); o.core=false dispensa o miolo
+function stairPhys(A,B,w,o){o=o||{};const D=0.46,hr=1.1,ext=o.ext||0,yf=typeof o.yf==='function'?o.yf:(()=>o.yf===undefined?A.y:o.yf);
+  const u=V3(B.x-A.x,0,B.z-A.z),Lh=u.length();u.normalize();const k=(B.y-A.y)/Lh,ry=s=>A.y+k*s;
+  const d=B.clone().sub(A).normalize(),yv=V3(0,1,0).addScaledVector(d,-d.y).normalize(),xv=V3(0,0,0).crossVectors(yv,d);
+  const r=ghost(new THREE.BoxGeometry(w,0.04,A.distanceTo(B)));r.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xv,yv,d));
+  r.position.copy(A).add(B).multiplyScalar(0.5).addScaledVector(yv,-0.02);walkables.push(r);
+  if(ext){const e=ghost(new THREE.BoxGeometry(w,0.04,ext));e.rotation.y=Math.atan2(u.x,u.z);
+    e.position.copy(B).addScaledVector(u,ext/2);e.position.y-=0.02;walkables.push(e);}
+  const bot=[];for(let i=0;i<=16;i++){const s=(Lh+ext)*i/16;bot.push([s,yf(s)]);}
+  const top=[[Lh+ext,B.y+hr],[Lh,B.y+hr],[0,A.y+hr]];if(!ext)top.shift();
+  (o.sides||[]).forEach(off=>lamina(bot.concat(top),A,u,off,0.05));
+  if(o.core!==false){const rs=s=>ry(s)-D,y0=yf(0),sA=Math.max(0,(y0+D-A.y)/k),sH=Math.min(Lh,o.hd?(y0+o.hd-A.y)/k:Lh);
+    const P=[[sA,y0],[sH,y0]];if(sH<Lh-0.05)P.push([sH,rs(sH)-0.3],[Lh,rs(Lh)-0.3]);P.push([Lh,rs(Lh)]);
+    lamina(P,A,u,0,w-0.02);}
+  return {u,k,Lh};}
+// guarda-corpo "cheio" invisível (os xRail só são sólidos no corrimão, e os raios passam entre as treliças)
+function guard(x1,z1,x2,z2,y,h){const l=Math.hypot(x2-x1,z2-z1),g=ghost(new THREE.BoxGeometry(0.05,h||1.2,l));
+  g.rotation.y=Math.atan2(x2-x1,z2-z1);g.position.set((x1+x2)/2,y+(h||1.2)/2,(z1+z2)/2);solids.push(g);return g;}
+function xRailG(x1,z1,x2,z2,y,opt){xRail(x1,z1,x2,z2,y,opt);guard(x1,z1,x2,z2,y);}
 
-/* ---- porão (base de pedra, 0 → 2.2) ---- */
-wall('x',ZF,-X,X,0,Y1,M.stone,[{a:-1.05,b:-0.15,bottom:0.05,top:1.95}]);
+/* ---- porão (base de pedra, 0 → 2.2): a frente (~2 m) é ABERTA (planta de fundações, fotos): parede de pedra com
+       a porta recuada para z=1,2, pilares brancos nas quinas da fachada e vigas brancas sob as paredes do térreo ---- */
+const ZP=1.2;
+wall('x',ZP,-X-0.11,X-0.11,0,Y1,M.stone,[{a:-1.9,b:-1.0,bottom:0.05,top:1.95}]);
 wall('x',ZB,-X,X,0,Y1,M.stone);
-wall('z',-X,ZB,ZF,0,Y1,M.stone,[{a:0.1,b:1.0,bottom:0.6,top:1.5}]);
-wall('z',X,ZB,ZF,0,Y1,M.stone);
-doorAt('x',ZF,-0.6,0.9,1.9,0,{open:2.4});
+wall('z',-X,ZB,ZP-0.11,0,Y1,M.stone,[{a:0.1,b:1.0,bottom:0.6,top:1.5}]);
+wall('z',X,ZB,2.9,0,Y1,M.stone);                            // a direita (encosta) segue fechada até o pilar
+doorAt('x',ZP,-1.45,0.9,1.9,0,{open:2.4});
+for(const x of[-2.33,2.33])box(0.35,Y1-0.3,0.35,M.stucco,x,(Y1-0.3)/2,3.08);          // pilares brancos
+box(2*X+0.22,0.3,0.3,M.stucco,0,Y1-0.15,3.1);box(0.24,0.3,ZF-ZP,M.stucco,-X+0.01,Y1-0.15,(ZF+ZP)/2);   // vigas
 windowAt('z',-X,0.55,1.05,0.8,0.8,{out:-1,noShutters:true});
 for(let i=-1;i<=1;i++)box(0.03,0.85,0.03,M.green,0,0,0,{solid:false}).position.set(-2.63,1.05,0.55+i*0.24);
 const pfT=T.path.clone();pfT.needsUpdate=true;pfT.repeat.set(5,6);
@@ -1025,31 +1064,45 @@ box(0.38,0.24,0.38,M.iron,1.85,8.93,-2.6);
   const hd2=box(0.85,0.06,1.62,M.roof,-1.95,7.6,1.2,{solid:false});hd2.rotation.z=0.32;
 })();
 
-/* ---- terraço frontal com treliça X + escada do vencedor ---- */
+// barra reta entre dois pontos (travamentos, corrimãos inclinados)
+function strut(a,b,t,mat){const m=new THREE.Mesh(new THREE.BoxGeometry(t,t,a.distanceTo(b)),mat);
+  m.position.copy(a).add(b).multiplyScalar(0.5);m.lookAt(b);m.castShadow=m.receiveShadow=true;scene.add(m);return m;}
+/* ---- terraço frontal em L com a ASA À ESQUERDA (planta do térreo): faixa de 1 m na fachada toda, passando
+       ~1 m além da parede esquerda, e a asa de 2,6 m em frente à porta; pilares brancos + postes verdes por baixo;
+       escada do Vencedor encostada na lateral esquerda, subindo DOS FUNDOS PARA A FRENTE ---- */
 (function frontDeck(){
-  box(6.05,0.1,1.4,M.greenDark,-0.225,Y1-0.05,3.85,{walk:true});    // terraço passa da parede esquerda p/ receber a escada
-  box(6.05,0.45,0.12,M.stucco,-0.225,Y1-0.34,4.48);                 // saia só na borda (porão fica acessível por baixo)
-  [[-3.1,4.5],[-2.7,4.5],[2.7,4.5]].forEach(p=>cyl(0.06,0.08,Y1,M.green,p[0],Y1/2,p[1]));
-  xRail(-3.25,4.55,0.3,4.55,Y1);                      // frente (até a asa do deque)
-  xRail(2.4,4.55,2.8,4.55,Y1);
-  xRail(2.8,4.55,2.8,3.15,Y1);                        // lado direito
-  xRail(-3.25,4.55,-3.25,3.5,Y1);                     // lado esquerdo — aberto em z 3.15–3.5: chegada da escada
-  // asa do deque à frente-direita (planta do térreo; 2 pilares na planta de fundações)
-  box(2.1,0.1,1.4,M.greenDark,1.35,Y1-0.05,5.27,{walk:true});
-  xRail(2.4,4.55,2.4,5.97,Y1);
-  xRail(2.4,5.97,0.3,5.97,Y1);
-  xRail(0.3,5.97,0.3,4.55,Y1);
-  [[0.5,5.8],[2.2,5.8]].forEach(p=>cyl(0.06,0.08,Y1,M.green,p[0],Y1/2,p[1]));
-  // escada do vencedor: sobe pela LATERAL ESQUERDA até o terraço (pé DIREITO primeiro)
-  const n=12, rise=Y1/n, run=0.26, z0=0.05, xC=-2.85, half=0.31;
-  for(let i=1;i<=n;i++){
-    const cz=z0+run*(i-0.5), y=rise*i;
-    const xHalf=(i%2===1)? xC-half/2 : xC+half/2;      // ímpar = pé direito (lado de fora)
-    box(half,0.055,0.3,M.green,xHalf,y-0.027,cz,{walk:true});}
-  const len=Math.sqrt((n*run)**2+Y1*Y1), ang=Math.atan(Y1/(n*run));
-  for(const s of[-1,1]){const v=box(0.07,0.09,len,M.greenDark,xC+s*(half+0.04),Y1/2,z0+n*run/2-0.12);v.rotation.x=-ang;}
-  const hr=box(0.05,0.05,len,M.green,xC-half-0.04,Y1/2+0.82,z0+n*run/2-0.12,{solid:false});hr.rotation.x=-ang;
-  for(let i=0;i<3;i++){const cz=z0+0.4+i*1.1, y=Y1*((cz-z0)/(n*run));cyl(0.03,0.03,0.85,M.green,xC-half-0.04,y+0.42,cz);}
+  const xL=-3.36, zS=4.08, zW=5.38, xW=0.05, xR=X+0.11, yb=Y1-0.1;   // borda esquerda, frente da faixa (0,82 além da parede), frente da asa (2,15), lado direito da asa, ponta direita
+  box(xR-xL,0.1,zS-ZF,M.greenDark,(xR+xL)/2,Y1-0.05,(ZF+zS)/2,{walk:true});    // faixa ao longo da fachada
+  box(xW-xL,0.1,zW-zS,M.greenDark,(xW+xL)/2,Y1-0.05,(zS+zW)/2,{walk:true});    // asa diante da porta
+  for(let x=xL+0.2;x<xR;x+=0.45)box(0.06,0.12,zS-ZF-0.04,M.greenDark,x,yb-0.06,(ZF+zS)/2,{solid:false});   // barrotes
+  for(let x=xL+0.2;x<xW;x+=0.45)box(0.06,0.12,zW-zS,M.greenDark,x,yb-0.06,(zS+zW)/2,{solid:false});
+  // vigas de borda verdes (no lugar da antiga saia branca)
+  [[xL,ZF,xL,zW],[xL,zW,xW,zW],[xW,zW,xW,zS],[xW,zS,xR,zS],[xR,zS,xR,ZF]].forEach(q=>{
+    const l=Math.hypot(q[2]-q[0],q[3]-q[1]);box(q[0]===q[2]?0.08:l+0.08,0.2,q[0]===q[2]?l+0.08:0.08,M.green,(q[0]+q[2])/2,yb-0.1,(q[1]+q[3])/2,{solid:false});});
+  // postes verdes (os pilares brancos são os das quinas do porão aberto)
+  [[xL+0.08,zW-0.08],[xW-0.07,zW-0.08],[xR-0.06,zS-0.06],[1.2,zS-0.06],[xL+0.08,3.35]].forEach(p=>cyl(0.06,0.06,yb-0.2,M.green,p[0],(yb-0.2)/2,p[1],10));
+  // guarda-corpo em treliça (sólido de verdade só pelas lâminas invisíveis) — aberto na borda de trás da ponta esquerda: chegada da escada
+  xRailG(xL,ZF,xL,zW,Y1);xRailG(xL,zW,xW,zW,Y1);xRailG(xW,zW,xW,zS,Y1);xRailG(xW,zS,xR,zS,Y1);xRailG(xR,zS,xR,ZF,Y1);
+  // escada do Vencedor: 12 espelhos, reta e íngreme (~51°), entre 2 banzos verdes robustos, guarda-corpo dos DOIS lados.
+  // Degraus-pá alternados (ímpar = pé DIREITO, lado de fora) sobre travessas de largura inteira: de longe, degraus cheios
+  const n=12, rise=Y1/n, zA=1.4, g=(ZF-zA)/n, k=Y1/(ZF-zA), ang=Math.atan(k), xI=-2.55, xO=-3.31, xC=(xI+xO)/2, cw=xI-xO-0.07;
+  const py=z=>(z-zA)*k;                                   // linha dos bocéis
+  const zs0=zA-0.12, sl=(ZF-zs0)/Math.cos(ang);
+  for(const x of[xI,xO]){const v=box(0.06,0.26,sl,M.green,x,py((zs0+ZF)/2)-0.05,(zs0+ZF)/2,{solid:false});v.rotation.x=-ang;}
+  const tw=cw*0.66;
+  for(let i=1;i<n;i++){const y=rise*i,zn=zA+g*i;          // bocel em zn; o piso avança para o alto a partir dele
+    box(tw,0.045,0.2,M.greenDark,(i%2===1)?xO+0.03+tw/2:xI-0.03-tw/2,y-0.0225,zn+0.08,{solid:false});
+    box(cw,0.04,0.04,M.green,xC,y-0.07,zn+0.15,{solid:false});}
+  // guarda-corpo dos dois lados: postes nos banzos, corrimão paralelo aos bocéis e diagonais em zigue-zague
+  const zp=[zA+0.02,zA+0.6,zA+1.18,ZF];
+  for(const x of[xI,xO]){
+    zp.forEach((z,j)=>{if(j===3)return;const y0=j?py(z)+0.08:0;cyl(0.028,0.028,py(z)+0.92-y0,M.green,x,(y0+py(z)+0.92)/2,z,8);});
+    strut(V3(x,py(zp[0])+0.92,zp[0]),V3(x,Y1+0.92,ZF),0.05,M.green);
+    for(let j=0;j<3;j++){const a=zp[j],b=zp[j+1],lo=j%2?V3(x,py(b)+0.1,b):V3(x,py(a)+0.1,a),hi=j%2?V3(x,py(a)+0.9,a):V3(x,py(b)+0.9,b);
+      strut(lo,hi,0.03,M.green);}}
+  cyl(0.028,0.028,0.92,M.green,xI,Y1+0.46,ZF,8);
+  // física: rampa invisível nos bocéis, paredes-guarda nos dois lados, miolo fechado por baixo (terraço tem 2,1 m livres)
+  stairPhys(V3(xC,0,zA),V3(xC,Y1,ZF),cw,{sides:[0.42,-0.4]});
   // capacho
   const matT=tex(128,64,(g,w,h)=>{g.fillStyle='#1f4d2b';g.fillRect(0,0,w,h);g.fillStyle='#d9d2b8';
     g.font='bold 13px Georgia';g.textAlign='center';g.fillText('CASA DE',w/2,26);g.fillText('SANTOS-DUMONT',w/2,46);});
@@ -1156,9 +1209,11 @@ const pend=new THREE.Mesh(new THREE.SphereGeometry(0.2,12,10),M.milk);pend.scale
   for(let i=1;i<=n;i++){
     const cz=z0-run*(i-0.5), y=Y1+rise*i;
     const xHalf=(i%2===1)? xC-half/2 : xC+half/2;      // ímpar = pé esquerdo (lado do vão)
-    box(half,0.05,0.24,M.woodDark,xHalf,y-0.025,cz,{walk:true});}
+    box(half,0.05,0.24,M.woodDark,xHalf,y-0.025,cz,{solid:false});}
+  // física: rampa invisível na linha dos bocéis, parede-guarda no lado do vão, miolo fechado onde a altura livre < 1,9 m
+  stairPhys(V3(xC,Y1,z0+0.13),V3(xC,Y2,z0+0.13-n*run),2*half,{sides:[-half-0.03],ext:0.23,hd:2.1});
   const len=Math.sqrt((n*run)**2+(Y2-Y1)**2), ang=Math.atan((Y2-Y1)/(n*run));
-  for(const s of[-1,1]){const v=box(0.07,0.09,len,M.woodDark,s>0?2.25:xC-half-0.04,Y1+(Y2-Y1)/2,z0-n*run/2+0.05);v.rotation.x=ang;}
+  for(const s of[-1,1]){const v=box(0.07,0.09,len,M.woodDark,s>0?2.25:xC-half-0.04,Y1+(Y2-Y1)/2,z0-n*run/2+0.05,{solid:false});v.rotation.x=ang;}
   const hr=box(0.05,0.05,len,M.woodMid,xC-half-0.05,Y1+(Y2-Y1)/2+0.78,z0-n*run/2+0.05,{solid:false});hr.rotation.x=ang;
   for(let i=1;i<3;i++){const cz=z0-i*0.7, y=Y1+(Y2-Y1)*((z0-cz)/(n*run));cyl(0.025,0.025,0.75,M.woodMid,xC-half-0.05,y+0.38,cz);}
 })();
@@ -1166,7 +1221,7 @@ const pend=new THREE.Mesh(new THREE.SphereGeometry(0.2,12,10),M.milk);pend.scale
 /* ---- mezanino (4.85, sobre o fundo) com guarda-corpo em treliça X
        e o vão por onde a escada chega ---- */
 box(4.58,0.14,2.45,M.woodFloor,0,Y2-0.07,-1.925,{walk:true});     // laje sobre o fundo (z -3.15 .. -0.7), largura total
-xRail(-2.29,-0.7,1.62,-0.7,Y2,{h:0.85});                           // guarda-corpo da borda — aberto na chegada da escada
+xRailG(-2.29,-0.7,1.62,-0.7,Y2,{h:0.85});                          // guarda-corpo da borda — aberto na chegada da escada
 // escrivaninha-cômoda sob o janelão dos fundos + telefone de castiçal
 box(1.3,0.7,0.48,M.woodDark,-0.25,Y2+0.35,-2.8);
 box(1.38,0.05,0.55,M.woodDark,-0.25,Y2+0.73,-2.8);
@@ -1229,52 +1284,73 @@ doorAt('x',ZB,0.9,0.7,1.65,Y2,{out:-1,open:2.6});
 /* ---- passarela lateral (nível do mezanino) + anexo do museu ---- */
 (function walkway(){
   box(2.6,0.1,1.2,M.greenDark,3.7,Y2-0.05,-1.85,{walk:true});
-  xRail(2.45,-2.5,5.0,-2.5,Y2,{h:0.9});
-  xRail(2.45,-1.2,3.4,-1.2,Y2,{h:0.9});
+  xRailG(2.45,-2.5,5.0,-2.5,Y2,{h:0.9});
+  xRailG(2.45,-1.2,4.9,-1.2,Y2,{h:0.9});  // os dois lados (foto da lateral direita)
   [[3.4,-2.45],[3.4,-1.25],[4.9,-2.45],[4.9,-1.25]].forEach(p=>{
     const gy=groundH(p[0],p[1]);cyl(0.055,0.08,Y2-gy,M.green,p[0],(Y2+gy)/2,p[1]);});
   box(2.2,0.12,1.8,M.path,5.9,4.98,-1.85,{walk:true});
 })();
 
-/* ---- observatório: plataforma na PONTA FRONTAL da cumeeira +
-       escada-ponte de degraus alternados vinda da passarela ---- */
+/* ---- observatório: plataforma na ponta frontal da cumeeira (piso ripado 1,3 × 1,3), pórtico de 2 postes altos com
+       painel em X na chegada, barras inclinadas descendo para os postes baixos do fundo e o mastro sobre o pórtico.
+       Escada (fotos): UMA viga verde larga e dentada, degraus INTEIROS de 0,6 m, todos do mesmo lado, cada um sobre um
+       calço; sobe em linha reta (z constante) da encosta, rente à empena da frente, por cima do pano direito.
+       Na base, bloco de concreto e 2 postes altos com uma corrente atravessada; um cabo fino faz as vezes de corrimão ---- */
 (function observatory(){
-  const zP=1.35;
-  box(1.5,0.09,1.5,M.greenDark,0,RIDGE+0.3,zP,{walk:true});
-  [[-0.68,-0.68],[0.68,-0.68],[-0.68,0.68],[0.68,0.68]].forEach(p=>cyl(0.04,0.04,0.95,M.green,p[0],RIDGE+0.78,zP+p[1]));
-  // guarda-corpo ripado (elevação) — aberto no lado direito (chegada)
-  [[0,0.68,1.5,0],[0,-0.68,1.5,0],[-0.68,0,0,1.5]].forEach(q=>{
-    box(q[2]||0.05,0.05,q[3]||0.05,M.green,q[0],RIDGE+1.26,zP+q[1]);
-    const n=Math.round((q[2]||q[3])/0.14);
-    for(let i=0;i<=n;i++){const t=i/n;
-      cyl(0.016,0.016,0.9,M.green,q[2]?-0.75+t*1.5:q[0],RIDGE+0.78,q[3]?zP-0.75+t*1.5:zP+q[1]);}});
-  cyl(0.035,0.045,2.4,M.green,-0.55,RIDGE+1.5,zP-0.55,8);
+  const zP=2.30, zS=2.65, yP=RIDGE+0.32, hp=0.65;                          // piso: x ±hp, z zP±hp; linha da escada em zS
+  const roofY=x=>Math.abs(x)<spanX?RIDGE-Math.abs(x)*slope+0.14:-99;      // face de cima das chapas
+  const gnd=x=>Math.min(terrainY(x,zS-0.36),terrainY(x,zS),terrainY(x,zS+0.36),groundH(x,zS));   // chão real sob a escada
+  // plataforma: tábuas com fresta sobre quadro verde, pés até o telhado
+  const pf=ghost(new THREE.BoxGeometry(2*hp,0.06,2*hp));pf.position.set(0,yP-0.03,zP);walkables.push(pf);
+  for(let i=0;i<10;i++)box(2*hp-0.04,0.035,0.1,M.woodMid,0,yP-0.018,zP-hp+0.07+i*0.129,{solid:false});
+  for(const z of[zP-hp+0.03,zP+hp-0.03])box(2*hp,0.1,0.06,M.green,0,yP-0.085,z,{solid:false});
+  for(const x of[-hp+0.03,hp-0.03])box(0.06,0.1,2*hp,M.green,x,yP-0.085,zP,{solid:false});
+  for(const x of[-hp+0.05,hp-0.05])for(const z of[zP-hp+0.05,zP+hp-0.05]){const ry=roofY(x);box(0.06,yP-0.13-ry,0.06,M.green,x,(yP-0.13+ry)/2,z,{solid:false});}
+  // pórtico (+x, lado −z da chegada): postes de 1,9 m, travessa e X; poste da quina +z de 1,6; postes de 1,0 no fundo (−x)
+  const P=(x,z,h)=>box(0.08,h+0.1,0.08,M.green,x,yP-0.1+(h+0.1)/2,z,{solid:false});
+  const zA=zP-0.58, zB=zP-0.08, zQ=zP+0.62, xQ=hp-0.03, top=yP+1.9;
+  P(xQ,zA,1.9);P(xQ,zB,1.9);P(xQ,zQ,1.6);P(-xQ,zP-0.62,1.0);P(-xQ,zQ,1.0);
+  box(0.06,0.06,zB-zA,M.green,xQ,top,(zA+zB)/2,{solid:false});box(0.06,0.06,zB-zA,M.green,xQ,yP+0.12,(zA+zB)/2,{solid:false});
+  for(const s of[-1,1])strut(V3(xQ,yP+0.12,s>0?zA:zB),V3(xQ,top,s>0?zB:zA),0.035,M.green);
+  box(0.05,0.05,zQ-zP+0.62,M.green,-xQ,yP+1.0,(zQ+zP-0.62)/2,{solid:false});box(0.05,0.05,zQ-zP+0.62,M.green,-xQ,yP+0.5,(zQ+zP-0.62)/2,{solid:false});
+  strut(V3(xQ,top,zA),V3(-xQ,yP+1.0,zP-0.62),0.05,M.green);strut(V3(xQ,yP+1.6,zQ),V3(-xQ,yP+1.0,zQ),0.05,M.green);
+  strut(V3(xQ,yP+0.5,zA),V3(-xQ,yP+0.5,zP-0.62),0.04,M.green);strut(V3(xQ,yP+0.5,zQ),V3(-xQ,yP+0.5,zQ),0.04,M.green);
+  // mastro sobre o meio da travessa do pórtico, bandeira tremulando para o lado da plataforma (−x); holofote
+  const zM=(zA+zB)/2;cyl(0.03,0.04,1.4,M.green,xQ,top+0.66,zM,8);
+  const fg=new THREE.Group();fg.position.set(xQ,top+0.95,zM);fg.rotation.y=Math.PI;scene.add(fg);
   const fl=new THREE.Mesh(new THREE.PlaneGeometry(1.05,0.72,12,1),new THREE.MeshStandardMaterial({map:T.flag,side:THREE.DoubleSide,roughness:.9}));
-  fl.position.set(0.02,RIDGE+2.3,zP-0.55);scene.add(fl);window._flag=fl;
-  const scope=cyl(0.045,0.062,0.75,M.brass,0.35,RIDGE+1.25,zP+0.3,12);scope.rotation.x=-0.9;
-  [[0.2,0.42],[0.5,0.42],[0.35,0.14]].forEach(p=>{const l=cyl(0.018,0.018,0.85,M.iron,p[0],RIDGE+0.72,zP+p[1],6);l.rotation.x=0.3;l.rotation.z=(p[0]-0.35)*1.4;});
-  // escada-ponte (pé direito primeiro): sobe EM LINHA RETA da encosta lateral,
-  // alinhada com a plataforma (z constante), como na elevação frontal
-  const P0=V3(5.6,groundH(5.6,zP)+0.06,zP), P1=V3(0.35,RIDGE+0.32,zP), D=P1.clone().sub(P0);
-  box(1.9,0.34,1.7,M.path,5.85,P0.y-0.21,zP,{walk:true});   // terraço de pedra na base — espaço folgado p/ embarcar
-  const n=20, dirH=V3(D.x,0,D.z).normalize(), right=V3(-dirH.z,0,dirH.x);
-  const yawG=Math.atan2(dirH.x,dirH.z);
-  for(let i=0;i<=n;i++){const t=i/n, p=P0.clone().lerp(P1,t);
-    const side=(i%2===0)?1:-1;
-    const tr=box(0.28,0.045,0.24,M.green,p.x+right.x*side*0.14,p.y,p.z+right.z*side*0.14,{walk:true});
-    tr.rotation.y=yawG;}
-  const mid=P0.clone().lerp(P1,0.5), L=D.length();
-  const beam=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.15,L),M.greenDark);
-  beam.position.copy(mid);beam.lookAt(P1);beam.castShadow=true;scene.add(beam);
-  for(const s of[-1,1]){const r=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.05,L),M.green);
-    r.position.set(mid.x+right.x*s*0.32,mid.y+0.85,mid.z+right.z*s*0.32);
-    r.lookAt(V3(P1.x+right.x*s*0.32,P1.y+0.85,P1.z+right.z*s*0.32));
-    r.castShadow=true;scene.add(r);
-    for(let i=2;i<n;i+=3){const p=P0.clone().lerp(P1,i/n);
-      cyl(0.022,0.022,0.85,M.green,p.x+right.x*s*0.32,p.y+0.44,p.z+right.z*s*0.32);}}
-  for(const t of[0.5,0.72,0.9]){const p=P0.clone().lerp(P1,t);   // cavaletes apoiados no telhado
-    const ry=RIDGE-Math.abs(p.x)*slope;
-    if(p.y>ry)cyl(0.035,0.035,p.y-ry,M.green,p.x,(p.y+ry)/2,p.z);}
+  fl.position.set(0.56,0,0);fg.add(fl);window._flag=fl;
+  const hol=cyl(0.07,0.05,0.16,M.iron,xQ+0.08,top+0.1,zB+0.02,10);hol.rotation.z=-1.1;
+  // luneta no tripé
+  const scope=cyl(0.045,0.062,0.75,M.brass,-0.1,yP+0.93,zP+0.2,12);scope.rotation.x=-0.9;
+  [[-0.25,0.32],[0.05,0.32],[-0.1,0.04]].forEach(p=>{const l=cyl(0.018,0.018,0.85,M.iron,p[0],yP+0.4,zP+p[1],6);l.rotation.x=0.3;l.rotation.z=(p[0]+0.1)*1.4;});
+  // guarda-corpo sólido invisível (o 4º lado é a chegada entre o pórtico e o poste da quina)
+  guard(-hp,zP-hp,-hp,zP+hp,yP);guard(-hp,zP+hp,hp,zP+hp,yP);guard(-hp,zP-hp,hp,zP-hp,yP);guard(hp,zP-hp,hp,zS-0.34,yP);
+  // escada: bloco de concreto na encosta (1º degrau), 20 espelhos até a borda +x da plataforma (~42°)
+  const x0=6.0, yB=terrainY(6.2,zS-0.5)+0.02, n=20, L=x0-hp, g=L/n, r=(yP-yB)/n, k=r/g, u=V3(-1,0,0), O=V3(x0,0,zS);
+  const py=s=>yB+s*k;                                                   // linha dos bocéis (s = distância a partir do pé)
+  const gb=Math.min(gnd(x0-0.1),gnd(x0+1.2))-0.3;box(1.3,yB-gb,1.1,M.path,x0+0.55,(yB+gb)/2,zS,{walk:true});
+  // viga dentada (perfil em dente-de-serra extrudado), deslocada para o lado −z sob os degraus
+  const c=0.145, dp=0.24, vz=0.18, zv=zS-0.3+vz/2, pts=[[0,py(0)-r-c-dp],[L,py(L)-r-c-dp],[L,py(L)-r-c]];
+  for(let i=n-1;i>=1;i--){const s=i*g;pts.push([s,py(s)-c],[s,py(s)-r-c]);}
+  pts.push([0,py(0)-c]);plate(pts,O,u,-(zv-zS),vz,M.green);
+  for(let i=1;i<n;i++){const s=i*g,y=py(s);
+    box(g+0.03,0.045,0.6,M.green,x0-s-(g-0.03)/2,y-0.0225,zS,{solid:false});                 // degrau inteiro
+    box(0.12,0.1,vz-0.02,M.greenDark,x0-s-g/2,y-0.095,zv,{solid:false});}                  // calço
+  // cavaletes até o telhado
+  for(const t of[0.62,0.85]){const s=L*t,x=x0-s,yb=py(s)-r-c-dp,ry=roofY(x);box(0.08,yb-ry,0.08,M.green,x,(yb+ry)/2,zv,{solid:false});}
+  // base: 2 postes altos com a corrente atravessada na entrada (solta, não barra) e o cabo fino até o poste da quina
+  const q1=V3(x0+0.25,yB+1.3,zS+0.42),q2=V3(x0+0.25,yB+1.3,zS-0.42);
+  for(const q of[q1,q2])box(0.1,1.3,0.1,M.green,q.x,yB+0.65,q.z,{solid:false});
+  let pc=q1.clone();for(let i=1;i<=10;i++){const t=i/10,cc=q1.clone().lerp(q2,t);cc.y-=0.3*4*t*(1-t);strut(pc,cc,0.022,M.iron);pc=cc;}
+  strut(q1,V3(xQ,yP+1.6,zQ),0.014,M.iron);
+  // física: rampa invisível nos bocéis e paredes-guarda dos dois lados (sobre o telhado e, perto da base, até o chão)
+  stairPhys(V3(x0,yB,zS),V3(hp,yP,zS),0.62,{sides:[0.36,-0.36],core:false,
+    yf:s=>{const x=x0-s;return Math.max(gnd(x)-0.25,roofY(x),py(s)-1.25);}});
+  // miolo sob o trecho baixo, onde a altura livre sobre a encosta é < 1,9 m
+  let sH=0;for(let s=0;s<=L;s+=0.05)if(py(s)-terrainY(x0-s,zS)<1.9)sH=s;
+  const cb=[],ct=[];for(let i=0;i<=10;i++){const s=sH*i/10,gg=gnd(x0-s);cb.push([s,gg-0.4]);ct.push([s,Math.max(py(s)-0.46,gg-0.3)]);}
+  lamina(cb.concat(ct.reverse()),O,u,0,0.6);
 })();
 
 /* ---- vegetação e vizinhança ---- */
@@ -1307,7 +1383,7 @@ function bush(x,z,s){s=s||1;const y=groundH(x,z);
  [-8,-9,1],[14,8,1],[-15,4,1.2],[6,18,0.9],[-6,19,1],[16,16,1.1],[-16,14,1.2],[10,-14,1.3],
  [-11,-14,1.2],[18,-6,1.4],[-19,-2,1.3],[4,-12,0.8]].forEach(p=>tree(p[0],p[1],p[2]));
 [[-4.2,4.8],[4.2,5.2],[4.4,1.0],[-4.3,-0.8],[3.9,7.5],[-3.8,8.5],[2.2,6.2],[-2.6,6.4]].forEach(p=>dracena(p[0],p[1]));
-[[-3.6,4.6],[3.5,4.8],[1.8,5.8],[-1.8,6.0],[4.4,-0.4],[-4.2,1.6],[3.4,10.6],[-3.6,11.3],[0.6,12.6],[-1.8,14.2],[6.4,13.2],[1.4,17.5]].forEach(p=>bush(p[0],p[1]));
+[[-4.55,4.6],[3.5,4.8],[1.8,5.8],[-1.8,6.0],[4.4,-0.4],[-4.75,1.6],[3.4,10.6],[-3.6,11.3],[0.6,12.6],[-1.8,14.2],[6.4,13.2],[1.4,17.5]].forEach(p=>bush(p[0],p[1]));
 [[-11,-13,0.9],[-15,-17,1.1],[9,-15,1],[15,-11,0.8],[3,-19,1.2]].forEach(p=>{
   const y=groundH(p[0],p[1]);const s=p[2];
   box(3*s,2.2*s,2.6*s,M.stucco,p[0],y+1.1*s,p[1],{solid:false});
@@ -1351,7 +1427,7 @@ function hydrangea(x,z){const y=groundH(x,z);
     const fl=new THREE.Mesh(new THREE.SphereGeometry(0.09,7,6),
       new THREE.MeshStandardMaterial({color:Math.random()<0.6?0x8fa8dd:0xc98cb8,roughness:.9}));
     fl.position.set(x+Math.cos(a)*0.3,y+0.52+Math.random()*0.13,z+Math.sin(a)*0.3);fl.castShadow=true;scene.add(fl);}}
-[[-2.2,6.3],[2.4,6.5],[-3.9,3.2],[-3.6,-0.6],[3.3,6.9],[-2.7,9.3],[2.4,10.4],[-2.9,12.3],[1.2,13.5],[-3.2,15.5]].forEach(p=>hydrangea(p[0],p[1]));
+[[-2.5,6.55],[2.4,6.5],[-4.7,3.6],[-4.6,-0.6],[3.3,6.9],[-2.7,9.3],[2.4,10.4],[-2.9,12.3],[1.2,13.5],[-3.2,15.5]].forEach(p=>hydrangea(p[0],p[1]));
 
 /* tufos de grama 3D no jardim */
 (function grama(){const bl=[];for(let i=0;i<30;i++)bl.push([6+Math.random()*116,2+Math.random()*2.5,Math.random()*128*0.4,(Math.random()-0.5)*24,Math.random()]);
@@ -1367,7 +1443,7 @@ function hydrangea(x,z){const y=groundH(x,z);
   geo.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));geo.setAttribute('normal',new THREE.Float32BufferAttribute(N,3));
   const mat=new THREE.MeshStandardMaterial({map:tc,alphaMap:ta,alphaTest:0.45,roughness:.95});
   const pts=[];for(let i=0;i<12000&&pts.length<7000;i++){const x=-34+Math.random()*70,z=-8+Math.random()*28.5;
-    if(Math.abs(x)<3.9&&z>-3.7&&z<6.2)continue;if(x>-2.6&&x<0.4&&z>6)continue;if(x>-3.4&&x<-2.3&&z>-0.2&&z<3.4)continue;
+    if(Math.abs(x)<3.9&&z>-3.7&&z<6.2)continue;if(x>-2.6&&x<0.4&&z>6)continue;if(x>-4.5&&x<-2.3&&z>-2.2&&z<5.6)continue;
     if(x>3.2&&z<4.8&&z>-3.2&&x<7)continue;pts.push([x,z]);}
   const im=new THREE.InstancedMesh(geo,mat,pts.length),d=new THREE.Object3D(),col=new THREE.Color();
   pts.forEach((p,i)=>{d.position.set(p[0],groundH(p[0],p[1])-0.03,p[1]);d.rotation.set(0,Math.random()*6.28,0);
@@ -1375,13 +1451,16 @@ function hydrangea(x,z){const y=groundH(x,z);
     col.setRGB(0.85+Math.random()*0.3,0.9+Math.random()*0.25,0.8+Math.random()*0.2);im.setColorAt(i,col);});
   im.receiveShadow=true;scene.add(im);})();
 
-/* pedras de passeio do jardim até a escada do vencedor */
-[[-1.35,6.6],[-1.9,5.7],[-2.35,4.8],[-2.7,3.9],[-2.85,2.9],[-2.85,1.6],[-2.85,0.6]].forEach(p=>{
+/* calçamento ao longo da lateral esquerda (o pé da escada do Vencedor fica nele, junto à base de pedra), em lances
+   de 0,5 m que acompanham o terreno, e pedras de passeio do jardim até ele, por fora da asa do terraço */
+for(let z=-1.9;z<5.1;z+=0.5){let h=-9;for(const x of[-4.05,-3.3,-2.55])for(const zz of[z,z+0.5])h=Math.max(h,terrainY(x,zz));
+  const c=box(1.5,0.4,0.5,M.path,-3.3,h+0.03-0.2,z+0.25,{walk:true});c.receiveShadow=true;}
+[[-1.35,6.6],[-2.3,6.2],[-3.3,5.95],[-3.85,5.45]].forEach(p=>{
   const st=cyl(0.3,0.34,0.06,M.path,p[0],groundH(p[0],p[1])+0.03,p[1],9);st.receiveShadow=true;walkables.push(st);});
 
 /* vasos de barro no terraço */
 const terra=new THREE.MeshStandardMaterial({color:0x9c5636,roughness:.95});
-[[-3.0,4.25],[2.55,4.25],[0.6,5.75]].forEach(p=>{
+[[-3.1,5.12],[2.2,3.8],[-0.25,5.12]].forEach(p=>{
   cyl(0.14,0.10,0.24,terra,p[0],Y1+0.12,p[1],10);
   const fo=new THREE.Mesh(new THREE.SphereGeometry(0.16,7,6),M.leaf2);fo.position.set(p[0],Y1+0.33,p[1]);fo.castShadow=true;scene.add(fo);
   const fl=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,5),new THREE.MeshStandardMaterial({color:0xd94f6b,roughness:.9}));
@@ -1439,10 +1518,10 @@ box(0.1,0.03,0.04,M.woodDark,-1.6,0.99,-2.22,{solid:false});
 const mrt=cyl(0.012,0.012,0.22,M.woodMid,-0.6,0.99,-2.35,8);mrt.rotation.z=Math.PI/2;        // martelo
 box(0.05,0.045,0.045,M.iron,-0.5,0.99,-2.35,{solid:false});
 [[-0.9,-2.62],[-1.05,-2.58],[-0.75,-2.6]].forEach((p,i)=>cyl(0.025,0.03,0.1+i*0.02,M.glass,p[0],1.02,p[1],8)); // frascos
-cyl(0.26,0.3,0.72,M.woodMid,1.55,0.42,1.7,12);                                               // barril
+cyl(0.26,0.3,0.72,M.woodMid,1.55,0.42,0.6,12);                                               // barril
 for(const yy of[0.2,0.62]){const ring=new THREE.Mesh(new THREE.TorusGeometry(0.285,0.012,6,16),M.iron);
-  ring.rotation.x=Math.PI/2;ring.position.set(1.55,yy,1.7);scene.add(ring);}
-box(0.5,0.34,0.4,M.woodMid,-1.6,0.23,1.3);box(0.44,0.3,0.36,M.woodMid,-1.55,0.55,1.25,{solid:false}); // caixotes
+  ring.rotation.x=Math.PI/2;ring.position.set(1.55,yy,0.6);scene.add(ring);}
+box(0.5,0.34,0.4,M.woodMid,-1.6,0.23,0.55);box(0.44,0.3,0.36,M.woodMid,-1.55,0.55,0.5,{solid:false}); // caixotes
 const rope=new THREE.Mesh(new THREE.TorusGeometry(0.16,0.045,7,16),M.wicker);
 rope.position.set(-2.24,1.35,0.5);rope.rotation.y=Math.PI/2;scene.add(rope);                 // corda na parede
 cyl(0.05,0.06,0.14,M.brass,-0.35,1.03,-2.5,8);                                               // lampião
@@ -3206,9 +3285,9 @@ const START14={x:-22,z:38.5,hdg:-Math.PI/2};                  // cabeceira oeste
     const st=tex(512,96,(g,w,h)=>{g.fillStyle='#f1ead6';g.fillRect(0,0,w,h);g.strokeStyle='#24422a';g.lineWidth=6;g.strokeRect(3,3,w-6,h-6);
       g.fillStyle='#24422a';g.font='bold 38px Georgia';g.textAlign='center';g.textBaseline='middle';g.fillText(q[1],w/2,h/2);});
     const pl=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.45),new THREE.MeshStandardMaterial({map:st,roughness:.9,side:THREE.DoubleSide}));
-    const zb=START14.z-7.6;pl.position.set(x,Y(x)+1.25,zb);scene.add(pl);
-    for(const s of[-1,1])cyl(0.03,0.035,1.47,post,x+s*1.1,Y(x)+0.735,zb-0.03,8);                     // postes da placa
-    for(let k=-1;k<=1;k++)addPropC(x+k*0.85,zb,0.38,Y(x),Y(x)+1.5);});
+    const zb=START14.z-7.9,px=x-1.6;pl.position.set(px,Y(px)+1.25,zb);scene.add(pl);   // placa ao lado do marco: o mastro e a bandeira (que tremula para +x) não a cobrem
+    for(const s of[-1,1])cyl(0.03,0.035,1.47,post,px+s*1.1,Y(px)+0.735,zb-0.03,8);                  // postes da placa
+    for(let k=-1;k<=1;k++)addPropC(px+k*0.85,zb,0.38,Y(px),Y(px)+1.5);});
   const st=tex(512,96,(g,w,h)=>{g.fillStyle='#24422a';g.fillRect(0,0,w,h);g.fillStyle='#f0e6c8';
     g.font='bold 42px Georgia';g.textAlign='center';g.textBaseline='middle';g.fillText('CAMPO DE BAGATELLE',w/2,h/2);});
   const pl=new THREE.Mesh(new THREE.PlaneGeometry(3.6,0.68),new THREE.MeshBasicMaterial({map:st}));
@@ -4010,8 +4089,8 @@ WORLD.post14=scene.children.length;
 
 /* ---- pontos de interesse ---- */
 const POIS=[
- {p:V3(-2.85,1.3,1.9),r:2.6,t:'Escada do Vencedor',x:'Sobe pela lateral esquerda até o terraço: degraus recortados, cada um com espaço para um pé só — é impossível começar com o pé esquerdo. Entra-se "com o pé direito"!'},
- {p:V3(-0.4,3.6,3.8),r:2.2,t:'Terraço de entrada',x:'Terraço de madeira com guarda-corpo em treliça X e a porta dupla verde. Lá dentro, a bandeira do Brasil emoldurada saúda quem chega.'},
+ {p:V3(-3.0,1.3,1.6),r:2.6,t:'Escada do Vencedor',x:'Sobe pela lateral esquerda, dos fundos para a frente, até a ponta do terraço: entre dois banzos verdes, degraus recortados e alternados, cada um com espaço para um pé só — é impossível começar com o pé esquerdo. Entra-se "com o pé direito"!'},
+ {p:V3(-0.4,3.6,3.8),r:2.2,t:'Terraço de entrada',x:'Terraço em L, com a asa diante da porta dupla verde, guarda-corpo em treliça X e pilares brancos por baixo. Lá dentro, a bandeira do Brasil emoldurada saúda quem chega.'},
  {p:V3(1.4,3.4,2.5),r:2.0,t:'Mesa-asa do inventor',x:'Escrivaninha de canto em forma de asa, com estantes e cartas emolduradas — à direita de quem entra, como mostram as fotos do museu.'},
  {p:V3(1.9,3.3,-2.5),r:2.0,t:'Lareira de canto',x:'Encaixada no canto do fundo à direita da sala. O friozinho da serra pedia lareira — e a sala não tem nenhuma divisória. Ela pode ser acesa e apagada.'},
  {p:V3(1.95,3.6,0.9),r:1.9,t:'Escada interna',x:'Curtíssima e íngreme (as plantas mostram ~57°!), também recortada, mas espelhada: sobe-se da sala para o fundo começando com o pé ESQUERDO. Do tamanho do dono: 1,52 m.'},
@@ -4019,8 +4098,8 @@ const POIS=[
  {p:V3(-0.25,5.9,-2.6),r:1.9,t:'Escrivaninha do mezanino',x:'Junto à parede dos fundos, a escrivaninha-cômoda e o telefone de castiçal — o escritório do Pai da Aviação.'},
  {p:V3(0.2,6.0,-3.8),r:1.8,t:'Chuveiro a álcool',x:'No puxadinho dos fundos (só existe no nível superior, apoiado em escoras, com janelão na empena própria): o primeiro chuveiro de água quente do Brasil, com piso xadrez em diagonal.'},
  {p:V3(4.2,6.3,-1.6),r:2.6,t:'Entrada pela passarela',x:'O terreno é tão íngreme que a encosta lateral chega no nível do mezanino: a passarela em treliça X leva à porta dupla sob o telhadinho — entrada do museu até hoje. A porta pode ser aberta e fechada.'},
- {p:V3(5.2,6.0,1.0),r:2.6,t:'Escada do observatório',x:'Degraus alternados também aqui! A escada-ponte sobe EM LINHA RETA da encosta lateral até a plataforma, por cima do telhado, apoiada em cavaletes — como na elevação frontal.'},
- {p:V3(0,11.2,1.4),r:2.8,t:'Observatório',x:'Plataforma ripada na ponta frontal da cumeeira, com luneta e a bandeira do Brasil: daqui Santos Dumont observava as estrelas.'},
+ {p:V3(5.2,6.0,2.65),r:2.6,t:'Escada do observatório',x:'Uma viga só, verde e dentada, com os degraus inteiros pousados em calços: sobe em linha reta da encosta até a plataforma, rente à empena da frente, por cima do telhado. Na base, dois postes com a corrente; um cabo fino serve de corrimão.'},
+ {p:V3(0,11.2,2.3),r:2.8,t:'Observatório',x:'Plataforma ripada na ponta frontal da cumeeira, com gradil, o pórtico de painel em X, a luneta e a bandeira do Brasil: daqui Santos Dumont observava as estrelas.'},
  {p:V3(0,1.2,0),r:2.4,t:'Porão-oficina',x:'A base de pedra (2,2 m) segura a casa na encosta do Morro do Encanto. Um pequeno espaço de serviço e oficina.'},
  {p:V3(-7.5,-4.5,25.2),r:4.5,t:'Relógio de Flores',x:'Do outro lado da Rua do Encanto fica o famoso Relógio de Flores de Petrópolis, vizinho da Encantada.'},
  {p:V3(-22,FY+2,38),r:8,t:'14-bis — Oiseau de Proie',x:'23/10/1906: o primeiro avião a decolar por meios próprios, diante do público! Entre no cesto para pilotar. Voe 25 m pela Taça Archdeacon! Os comandos estão em Configurações.'},
@@ -4103,8 +4182,17 @@ document.getElementById('settingsMap').addEventListener('click',()=>{document.ge
 document.getElementById('settingsNight').addEventListener('click',()=>{toggleNight();settingsNote(night?'Modo noite ativado.':'Modo dia ativado.');});
 renderSettings();
 // câmeras a pé: 3ª pessoa perto → 3ª pessoa aberta → 1ª pessoa
-const WALKCAM=[{n:'3ª pessoa',d:2.2,h:0},{n:'3ª pessoa aberta',d:5.8,h:0.9},{n:'1ª pessoa',d:0,h:0}];let walkCam=0;
+// o = câmera colada atrás da cabeça, acompanhando o olhar para cima/baixo; s = deslocamento lateral (0 = centralizada)
+const WALKCAM=[{n:'3ª pessoa',d:2.2,h:0},{n:'3ª pessoa aberta',d:5.8,h:0.9},{n:'3ª pessoa bem perto',d:1.1,h:0,o:1,s:0},{n:'1ª pessoa',d:0,h:0}];let walkCam=0;
+const WALKCAM_1P=WALKCAM.findIndex(c=>c.d===0);
 function setWalkCam(i){walkCam=i;thirdP=WALKCAM[i].d>0;updMode();}
+function walkCamDist(c){return c.d*(c.z||1);}
+addEventListener('wheel',e=>{if((window._PLT&&window._PLT.on)||settingsOpen||bigOpen)return;
+  const hp=document.getElementById('help');if(hp&&getComputedStyle(hp).display!=='none')return;
+  const c=WALKCAM[walkCam],k=Math.exp(Math.max(-300,Math.min(300,e.deltaY))*0.0012);
+  if(c.d>0)c.z=Math.max(0.45/c.d,Math.min(14/c.d,(c.z||1)*k));        // rodinha para frente = mais perto
+  else c.z=Math.max(1,Math.min(2.8,(c.z||1)/k));                        // 1ª pessoa: até 2,8× de zoom
+  updMode();},{passive:true});
 function near14(){B14.updateMatrixWorld();return player.pos.distanceTo(B14.localToWorld(V3(0,1.4,1.9)))<4.2;}
 addEventListener('keydown',e=>{
   if(captureAction){e.preventDefault();if(e.code==='Escape'){captureAction=null;renderSettings();settingsNote('Alteração cancelada.');return;}
@@ -4127,7 +4215,7 @@ addEventListener('keydown',e=>{
     if(fd<2.0&&(!d||fd<player.pos.distanceTo(d.p)))window._toggleFire();
     else if(d)d.isOpen=!d.isOpen;}
   if(e.code===bindings.camera){if(pil)cycleFlightCamera();else setWalkCam((walkCam+1)%WALKCAM.length);}
-  if(e.code===bindings.quickCamera){if(pil)toggleFlightSeat();else setWalkCam(thirdP?2:0);}
+  if(e.code===bindings.quickCamera){if(pil)toggleFlightSeat();else setWalkCam(thirdP?WALKCAM_1P:0);}
   if(e.code===bindings.freeFly&&!pil){player.fly=!player.fly;player.vy=0;updMode();}
   if(e.code===bindings.dayNight)toggleNight();
   if(e.code===bindings.map)toggleBig();
@@ -4149,11 +4237,11 @@ addEventListener('mousemove',e=>{if(document.pointerLockElement!==canvas)return;
 const TPS=[
  {p:V3(-7,0,11.5),yaw:-0.55,pitch:0.08},            // jardim (vista clássica: frente + lateral esquerda)
  {p:V3(-6,-4.0,23.5),yaw:-0.3,pitch:0.18},          // rua / relógio
- {p:V3(0,1.55,0.9),yaw:0,pitch:-0.05},              // porão
+ {p:V3(0,1.55,0.3),yaw:0,pitch:-0.05},              // porão
  {p:V3(-1.2,Y1+1.55,1.6),yaw:-0.85,pitch:0.0},      // térreo
  {p:V3(-0.2,Y2+1.55,-1.0),yaw:0.4,pitch:-0.1},      // mezanino
  {p:V3(5.6,Y2+1.55,-1.85),yaw:1.57,pitch:-0.02},    // passarela
- {p:V3(0,RIDGE+1.85,1.35),yaw:Math.PI,pitch:-0.22}, // observatório
+ {p:V3(0,RIDGE+1.87,2.3),yaw:Math.PI,pitch:-0.22},   // observatório
  {p:V3(-37,FY+1.55,47),yaw:-1.05,pitch:0.02},       // Campo de Bagatelle: vista de 3/4 do 14-bis
 ];
 TPS[0].p.y=groundH(-7,11.5)+1.55;
@@ -4161,6 +4249,27 @@ TPS.push(WORLD.tp.centro,WORLD.tp.mirante);                        // 9: Centro 
 function teleport(i){if(window._PLT&&window._PLT.on)return;   // pilotando: sem teleporte
   const t=TPS[i];if(!t)return;player.pos.copy(t.p);
   player.yaw=t.yaw;player.pitch=t.pitch;player.vy=0;}
+
+/* poças de luz dos lampiões: ~300 PointLights pesariam demais, então cada lampião sem luz própria
+   ganha um disco aditivo moldado ao chão (lei do cosseno³ de uma lâmpada a 4,3 m), aceso só à noite */
+const LAMP_POOLS=(function(){const R=8,H=4.3,NR=7,NS=18,pos=[],col=[],idx=[];
+  const pool=(x,z,yFn,k)=>{const b=pos.length/3;
+    for(let i=0;i<=NR;i++){const r=R*i/NR,f=k*Math.pow(H*H/(H*H+r*r),1.5)*(1-(r/R)*(r/R));
+      for(let j=0;j<(i?NS:1);j++){const a=j/NS*Math.PI*2,px=x+Math.cos(a)*r,pz=z+Math.sin(a)*r;
+        pos.push(px,yFn(px,pz),pz);col.push(f,f*0.7,f*0.36);}}
+    for(let j=0;j<NS;j++)idx.push(b,b+1+(j+1)%NS,b+1+j);
+    for(let i=1;i<NR;i++)for(let j=0;j<NS;j++){const a=b+1+(i-1)*NS+j,c=b+1+(i-1)*NS+(j+1)%NS,d=a+NS,e=c+NS;idx.push(a,e,c,a,d,e);}};
+  LAMPS.forEach(p=>pool(p[0],p[1],(x,z)=>terrainY(x,z)+0.22,0.3));      // acima do calçamento (rua a +0,13)
+  // os dois postes do relógio (o streetLight do direito quase não chega ao chão): rua de baixo plana, topo ≈ -5,45
+  for(const x of[4.5,-16])pool(x,21.6,(x,z)=>Math.max(terrainY(x,z),Math.abs(x)<35&&z>19.9&&z<30?-5.45:-1e9)+0.05,0.3);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setIndex(idx);g.computeBoundingSphere();
+  const m=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+  m.userData._lin=m.userData.ownPatch=1;                       // cor já linear; névoa própria: some ao longe em vez de somar névoa
+  m.onBeforeCompile=sh=>{worldPatch(sh);sh.fragmentShader=sh.fragmentShader.replace('gl_FragColor.rgb = wFog( gl_FragColor.rgb );',
+    '{vec3 rd=vWPos-cameraPosition;float dd=length(rd);rd/=max(dd,1e-3);gl_FragColor.rgb*=1.0-wFogAmt(cameraPosition,rd,dd);}');};
+  const mesh=new THREE.Mesh(g,m);mesh.visible=false;mesh.matrixAutoUpdate=false;mesh.raycast=()=>{};  // fora do chão/colisões
+  scene.add(mesh);return mesh;})();
 
 /* dia / noite */
 let night=false;
@@ -4172,13 +4281,14 @@ function toggleNight(){night=!night;
   if(window._POST)window._POST.expo=night?1.25:0.95;
   Lsala.intensity=night?1.3:0.35; Lporao.intensity=night?0.8:0.25;
   Lmezz.intensity=night?1.1:0.3; Lvaranda.intensity=night?0.9:0;
-  streetLight.intensity=night?1.4:0; lampMats.forEach(m=>m.emissiveIntensity=night?1.2:0);
+  streetLight.intensity=night?1.4:0; lampMats.forEach(m=>m.emissiveIntensity=night?1.2:0); LAMP_POOLS.visible=night;
   M.milk.emissiveIntensity=night?1.6:0.25;
   if(window._extrasNight)window._extrasNight(night);
   updMode();}
-function updMode(){const wc=(typeof walkCam==='number')?WALKCAM[walkCam].n:'3ª pessoa';
+function updMode(){const C=(typeof walkCam==='number')?WALKCAM[walkCam]:null,zm=C&&C.z&&Math.abs(C.z-1)>0.02;
+  const wc=C?C.n+(zm&&C.d>0?' · '+walkCamDist(C).toFixed(1)+' m':''):'3ª pessoa';
   document.getElementById('mode').innerHTML=
-  (window._PLT&&window._PLT.on?'✈ pilotando o 14-bis':player.fly?'🕊 voo livre':(thirdP?'🎩 Santos Dumont — '+wc:'🚶 1ª pessoa'))+
+  (window._PLT&&window._PLT.on?'✈ pilotando o 14-bis':player.fly?'🕊 voo livre':(thirdP?'🎩 Santos Dumont — '+wc:'🚶 1ª pessoa'+(zm?' · zoom '+C.z.toFixed(1)+'×':'')))+
   '<br>'+(night?'noite estrelada':'tarde na serra');}
 updMode();
 
@@ -4283,6 +4393,8 @@ window._prepMaterials=prepMaterials;
     document.getElementById('help').style.display='none';thirdP=false;
     player.pos.set(v[0],v[1],v[2]);player.yaw=v[3]||0;player.pitch=v[4]||0;player.fly=true;}
   if(q.has('tp')){thirdP=true;updMode();}
+  if(q.has('wcam'))setWalkCam(Math.max(0,Math.min(WALKCAM.length-1,+q.get('wcam')||0)));
+  if(q.has('wheel')){const n=+q.get('wheel')||0;for(let i=0;i<Math.abs(n);i++)dispatchEvent(new WheelEvent('wheel',{deltaY:Math.sign(n)*100}));}
   if(q.has('closed'))doors.forEach(d=>{d.isOpen=false;d.pivots.forEach((pv,i)=>pv.rotation.y=d.closedA[i]);});
   if(q.get('fire')==='0'&&window._toggleFire)window._toggleFire();
   if(q.has('fly14')){document.getElementById('help').style.display='none';
@@ -4462,22 +4574,30 @@ function animate(){requestAnimationFrame(animate);
   if(window._PLT&&window._PLT.on){
     window._cam14(dt);
   }else{
+    {const fv=thirdP?70:70/(WALKCAM[WALKCAM_1P].z||1);if(Math.abs(camera.fov-fv)>0.01){camera.fov=fv;camera.updateProjectionMatrix();}}
     avatar.visible=thirdP;
     avatar.position.set(player.pos.x,player.pos.y-player.eye,player.pos.z);
     avatar.rotation.y=player.yaw;
     stepAvatar(dt,mv.lengthSq()>1e-8&&!player.fly);
     if(thirdP){                                      // câmera atrás do Santos Dumont, estilo GTA
-      const wc=WALKCAM[walkCam].d>0?WALKCAM[walkCam]:WALKCAM[0];
-      const ho=Math.max(-0.3,Math.min(1.8+wc.h,0.45+wc.h-player.pitch*1.6*(wc.d/2.2)));
-      const off=V3(Math.sin(player.yaw)*wc.d,ho,Math.cos(player.yaw)*wc.d);
+      const wc=WALKCAM[walkCam].d>0?WALKCAM[walkCam]:WALKCAM[0],D=walkCamDist(wc);
+      let off,aim=null,tilt=0;
+      if(wc.o){                                      // bem perto: logo atrás da cabeça, mirando para onde ele olha
+        const cp=Math.cos(player.pitch),lx=-Math.sin(player.yaw)*cp,ly=Math.sin(player.pitch),lz=-Math.cos(player.yaw)*cp;
+        const rx=Math.cos(player.yaw),rz=-Math.sin(player.yaw),sx=rx*(wc.s||0),sy=-0.1,sz=rz*(wc.s||0);
+        off=V3(sx-lx*D,sy-ly*D+0.12,sz-lz*D);
+        aim=V3(player.pos.x+sx+lx*6,player.pos.y+sy+ly*6,player.pos.z+sz+lz*6);
+      }else{const k=1.6*(D/2.2),ho0=0.45+wc.h*(D/wc.d)-player.pitch*k,ho=Math.max(-0.3,Math.min(1.8+wc.h*(D/wc.d),ho0));
+        tilt=(ho-ho0)/k;                             // a altura travou no limite: o resto do mouse gira a câmera (olhar o céu)
+        off=V3(Math.sin(player.yaw)*D,ho,Math.cos(player.yaw)*D);}
       const L=off.length(),dirC=off.clone().normalize();
       ray.set(player.pos,dirC);ray.far=L+0.2;        // encolhe dentro de casa: fica logo atrás dele
       const hits=ray.intersectObjects(solids,false);
-      let dist=hits.length?Math.max(0.8,hits[0].distance-0.18):L;
+      let dist=hits.length?Math.max(wc.o?0.35:0.8,hits[0].distance-0.18):L;
       for(let t=0.4;t<dist;t+=0.3){const x=player.pos.x+dirC.x*t,y=player.pos.y+dirC.y*t,z=player.pos.z+dirC.z*t;   // e não entra nas casas da cidade
         const o=hitColl(x,y,z,0.15);if(o&&o.n!=='uma ponte'&&o.n!=='a ponte da ferrovia'){dist=Math.max(0.8,t-0.25);break;}}
       camera.position.copy(player.pos).addScaledVector(dirC,dist);
-      camera.lookAt(player.pos.x,player.pos.y+0.05,player.pos.z);
+      if(aim)camera.lookAt(aim);else{camera.lookAt(player.pos.x,player.pos.y+0.05,player.pos.z);if(tilt)camera.rotateX(tilt);}
     }else{
       camera.position.copy(player.pos);
       camera.rotation.set(0,0,0);camera.rotateY(player.yaw);camera.rotateX(player.pitch);

@@ -20,6 +20,9 @@ nenhuma dependência externa: nada de CDN, fontes remotas ou rastreadores.
 | `v2.html` | **Versão 2** (atual) | A serra de Petrópolis para voar, o 14-bis com física real, a cidade e os marcos (este README descreve esta versão) |
 | `v1.html` | **Versão 1.0** (histórico) | A primeira versão: a casa A Encantada e o 14-bis no Campo de Bagatelle, congelada como estava na tag git `v1.0` |
 
+**Autoria:** a versão 1 foi criada pelo **Claude Fable 5**. A versão 2 é a
+continuação do projeto do Fable 5, feita pelo **Claude Opus 5.5**.
+
 A versão 1 é guardada só como registro, então não a edite. O código original
 dela fica na tag: `git checkout v1.0`. Links antigos com parâmetros
 (`index.html?shot=…`) são redirecionados para `v2.html`.
@@ -43,7 +46,8 @@ acessar o mapa, o modo noturno e os destinos. As preferências ficam salvas no n
 | `Espaço` | pular |
 | `E` | abrir/fechar a porta ou as venezianas da janela mais próxima; acender a lareira |
 | `F` | **entrar/sair do 14-bis** (como no GTA — para sair, pouse e pare) |
-| `C` | troca a câmera: 3ª pessoa (Santos Dumont de terno e panamá) → 3ª pessoa aberta → 1ª pessoa; pilotando, alterna os pontos de vista do 14-bis |
+| `C` | troca a câmera: 3ª pessoa (Santos Dumont de terno e panamá) → 3ª pessoa aberta → 3ª pessoa bem perto (no ombro) → 1ª pessoa; pilotando, alterna os pontos de vista do 14-bis |
+| Rodinha do mouse | zoom: a pé, aproxima/afasta a câmera de 3ª pessoa (cada câmera lembra o seu zoom) e, na 1ª pessoa, vira luneta (até 2,8×); pilotando, zoom das câmeras do 14-bis |
 | `V` | alterna rapidamente entre a câmera externa e a 1ª pessoa |
 | `G` | voo livre (`Espaço` sobe, `Shift` desce; acelera com a altura) |
 | `M` | mapa da serra (o minimapa com bússola e rumo aparece ao voar) |
@@ -141,7 +145,7 @@ A resolução se ajusta sozinha se o computador não der conta.
 `v2.html?cam=x,y,z,yaw,pitch` posiciona a câmera livremente;
 `&night=1` modo noturno; `&closed=1` fecha portas e janelas;
 `&fire=0` lareira apagada; `&fly14=1` abre com o 14-bis em pleno voo;
-`&map=1` abre o mapa; `&dbg=1` mostra no DOM (`#dbg`) triângulos, draw
+`&map=1` abre o mapa; `&wcam=N` (0–3) escolhe a câmera a pé; `&wheel=N` simula N giros da rodinha; `&dbg=1` mostra no DOM (`#dbg`) triângulos, draw
 calls e tempos de carga. Qualidade: `?hq` (resolução até 2×), `?nopost`
 (sem pós-processamento), `?lowshadow` (sombra 2048), `?noadapt` (sem
 ajuste automático de resolução).
