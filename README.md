@@ -59,8 +59,18 @@ acessar o mapa, o modo noturno e os destinos. As preferências ficam salvas no n
 | `Q / Z` | pilotando: ajustar o compensador |
 | `I / O` | pilotando: ignição / som do motor |
 | `N` | dia ↔ noite |
+| `F3` | mostra/esconde o contador de FPS (quadros por segundo, 1% mais lentos, tempo de CPU e GPU, draw calls, resolução) |
 | `1`–`0` | teleporte: Jardim, Rua & Relógio, Porão, Sala, Mezanino, Passarela, Observatório, **Campo de Bagatelle**, **Centro** (Catedral), **Mirante** (capela do morro) |
 | `Esc` | abre/fecha Configurações e fecha o mapa |
+
+### Qualidade gráfica
+Em **⚙ Configurações › Gráficos** há quatro níveis — **Baixa**, **Média**, **Alta** e
+**Ultra** — e ajustes finos: resolução da imagem, resolução dinâmica, sombras,
+antisserrilhado, brilho e raios de sol, detalhes ao longe, alcance da mata e limite
+de FPS. Na primeira vez o jogo escolhe o nível pela placa de vídeo; depois vale o que
+você salvar. A resolução dinâmica só reduz os pixels quando o gargalo é a placa de
+vídeo. Sombras desligadas no meio do jogo param de ser desenhadas na hora; a economia
+completa vem ao recarregar a página.
 
 ## ✉️ Missão: "Por céus nunca dantes navegados"
 
@@ -186,7 +196,8 @@ A resolução se ajusta sozinha se o computador não der conta.
 `&night=1` modo noturno; `&closed=1` fecha portas e janelas;
 `&fire=0` lareira apagada; `&fly14=1` abre com o 14-bis em pleno voo;
 `&map=1` abre o mapa; `&wcam=N` (0–3) escolhe a câmera a pé; `&wheel=N` simula N giros da rodinha; `&dbg=1` mostra no DOM (`#dbg`) triângulos, draw
-calls e tempos de carga. Qualidade: `?hq` (resolução até 2×), `?nopost`
+calls e tempos de carga. Qualidade: `?q=baixa|media|alta|ultra` (força um nível sem
+salvar), `?fps` (abre com o contador de FPS), `?hq` (resolução até 2×), `?nopost`
 (sem pós-processamento), `?lowshadow` (sombra 2048), `?noadapt` (sem
 ajuste automático de resolução).
 

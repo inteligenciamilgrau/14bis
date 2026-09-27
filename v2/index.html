@@ -138,11 +138,36 @@ window.onerror=function(msg,src,line){var d=document.createElement('div');
 const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
 const _t0=performance.now(),_TM=[];function TM(n){_TM.push(n+':'+Math.round(performance.now()-_t0));}
 const QS=new URLSearchParams(location.search);
-const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true,powerPreference:'high-performance'});
-const PR0=Math.min(devicePixelRatio,QS.has('hq')?2:1.5);let PR=PR0;
+/* ---- QUALIDADE GRÁFICA: níveis Baixa/Média/Alta/Ultra + ajustes finos, salvos neste navegador. Aqui só o que precisa
+   existir antes do renderer; o bloco GRÁFICOS (depois do pós-processamento) aplica o resto, mede o FPS (F3) e monta o
+   painel nas Configurações. ?q=baixa|media|alta|ultra força um nível sem salvar; ?fps mostra o contador ---- */
+const GFX_KEY='14bis-graficos-v1';
+// res: pixels por px da página (a tela limita) · dyn: resolução dinâmica · sombra: 0 sem, 1 simples, 2 boa, 3 máxima
+// aa: amostras de antisserrilhado · luz: brilho e raios de sol · detalhe: corte de peças pequenas ao longe · mata: alcance do LOD
+const GFX_PRESETS={baixa:{res:0.75,dyn:1,sombra:0,aa:0,luz:0,detalhe:0,mata:0},media:{res:1,dyn:1,sombra:1,aa:2,luz:1,detalhe:1,mata:1},
+  alta:{res:1.5,dyn:1,sombra:3,aa:4,luz:1,detalhe:2,mata:2},ultra:{res:2,dyn:0,sombra:3,aa:4,luz:1,detalhe:3,mata:3}};
+const GFX_OPTS={res:[0.5,0.67,0.75,0.85,1,1.25,1.5,2],dyn:[0,1],sombra:[0,1,2,3],aa:[0,2,4],luz:[0,1],detalhe:[0,1,2,3],mata:[0,1,2,3],
+  fpsMax:[0,30,60,90,120,144],fpsShow:[0,1]};
+const GFXS=(function(){const S=Object.assign({nivel:'alta',fpsMax:0,fpsShow:0},GFX_PRESETS.alta),q=QS.get('q');
+  const shot=QS.has('shot')||QS.has('cam')||QS.has('fly14');
+  let sv=null;try{sv=JSON.parse(localStorage.getItem(GFX_KEY));}catch(_){}
+  if(q&&GFX_PRESETS[q]){Object.assign(S,GFX_PRESETS[q]);S.nivel=q;S.temp=1;}
+  else if(sv&&typeof sv==='object'&&!shot){for(const k in GFX_OPTS)if(GFX_OPTS[k].includes(sv[k]))S[k]=sv[k];
+    S.nivel=GFX_PRESETS[sv.nivel]||sv.nivel==='custom'?sv.nivel:'custom';}
+  else if(!shot)S.auto=1;                                  // 1ª vez: o nível sai da placa de vídeo, logo depois do renderer
+  if(QS.has('hq'))S.res=2;if(QS.has('lowshadow'))S.sombra=Math.min(S.sombra,2);if(QS.has('fps'))S.fpsShow=1;
+  return S;})();
+// com o pós-processamento (WebGL2) o antisserrilhado é feito no alvo HDR: a tela final não precisa de MSAA próprio
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:QS.has('nopost')||typeof WebGL2RenderingContext==='undefined',
+  powerPreference:'high-performance'});
+if(GFXS.auto){const gl=renderer.getContext(),e=gl.getExtension('WEBGL_debug_renderer_info'),g=e?String(gl.getParameter(e.UNMASKED_RENDERER_WEBGL)):'';
+  const n=/swiftshader|llvmpipe|software|basic render/i.test(g)?'baixa':
+    (/intel|uhd|iris|mali|adreno|powervr|videocore/i.test(g)&&!/nvidia|radeon|amd|geforce|arc/i.test(g))||matchMedia('(pointer:coarse)').matches?'media':'alta';
+  Object.assign(GFXS,GFX_PRESETS[n]);GFXS.nivel=n;}
+let PR0=Math.min(devicePixelRatio,GFXS.res),PR=PR0;
 renderer.setPixelRatio(PR);
 renderer.setSize(innerWidth,innerHeight);
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;   // um tipo só: trocar recompila todos os shaders
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;   // curva de filme: luz "de foto" (sem pós-processo)
 renderer.toneMappingExposure=1.0;
@@ -588,9 +613,12 @@ scene.fog=new THREE.FogExp2(0xcfe2ef,0.0003);            // liga USE_FOG; a név
 
 const hemi=new THREE.HemisphereLight(0xbcd4ff,0x5a5a3a,0.14);scene.add(hemi);   // o grosso da luz ambiente vem do céu (IBL)
 const sun=new THREE.DirectionalLight(0xffc98f,3.5);
-sun.castShadow=true;
-const SHR=(renderer.capabilities.maxTextureSize>=4096&&!QS.has('lowshadow'))?4096:2048;
-sun.shadow.mapSize.set(SHR,SHR);sun.shadow.bias=-0.00022;sun.shadow.normalBias=0.035;
+// mapa de sombra pelo nível (Configurações › Gráficos): 1 simples = 2048 refeito a cada 2 quadros; 2 boa = 2048;
+// 3 máxima = 4096. Texel maior pede normalBias maior (sem "acne")
+function shadowRes(n){return n>=3&&renderer.capabilities.maxTextureSize>=4096?4096:2048;}
+let SHR=shadowRes(GFXS.sombra);
+sun.castShadow=GFXS.sombra>0;
+sun.shadow.mapSize.set(SHR,SHR);sun.shadow.bias=-0.00022;sun.shadow.normalBias=0.035*Math.sqrt(4096/SHR);
 sun.shadow.camera.near=1;sun.shadow.camera.far=1500;
 function setShadowSpan(R){const c=sun.shadow.camera;if(c.right===R)return;
   c.left=-R;c.right=R;c.top=R;c.bottom=-R;c.updateProjectionMatrix();}
@@ -2684,14 +2712,12 @@ function granitePeak(x,z,H,R0,lean,seed){const pts=[];for(let i=0;i<=28;i++){con
   const g=new THREE.LatheGeometry(pts,16),p=g.attributes.position;
   for(let i=0;i<p.count;i++){const px=p.getX(i),py=p.getY(i),pz=p.getZ(i),t=py/H,an=Math.atan2(pz,px),k=1+0.16*pn(an*2.2+seed,t*7);
     p.setXYZ(i,px*k+lean[0]*t*t*H,py,pz*k+lean[1]*t*t*H);}
-  g.computeVertexNormals();const y=groundY(x,z);const m=lmesh(g,WM.granite,x,y-R0*0.35,z);   // groundY: a agulha oeste fica além de 2.440 m
+  g.computeVertexNormals();const y=groundY(x,z);const m=lmesh(g,WM.granite,x,y-R0*0.35,z);   // groundY: o Dedo fica na borda dos 2.440 m (anel distante)
   for(let k=0;k<4;k++){const t0=k/4,t1=(k+1)/4,rr=R0*(1-0.62*(t0+t1)/2);
     addColl(x+lean[0]*t0*t0*H,z+lean[1]*t0*t0*H,rr*1.7,rr*1.7,0,y-R0*0.35+t0*H,y-R0*0.35+t1*H,'o Dedo de Deus');}
   return m;}
 (function dedo(){const s=summit(DEDO.x,DEDO.z,230);
-  granitePeak(s[0],s[1],150,30,[0.10,-0.05],1.3);
-  granitePeak(s[0]+150,s[1]-230,75,24,[0.05,0.08],4.1);                    // agulhas vizinhas da Serra dos Órgãos
-  granitePeak(s[0]-280,s[1]+120,95,27,[-0.06,0.02],7.7);
+  granitePeak(s[0],s[1],150,30,[0.10,-0.05],1.3);                         // só ele: as "agulhas vizinhas" (mesma forma) pareciam 3 Dedos
   lmPOI(s[0],s[2]+80,s[1],260,'Dedo de Deus','Pico de 1.692 m na Serra dos Órgãos, escalado pela primeira vez em 1912 — símbolo do montanhismo brasileiro. De qualquer ponto da serra ele aponta o nordeste.');
   lmMark(s[0],s[1],'Dedo de Deus','☝');
 })();
@@ -2794,7 +2820,8 @@ const POVO=(function(){
     hairM:T(new THREE.SphereGeometry(0.11,8,4,0,Math.PI*2,0,Math.PI*0.55),0,0.185,0.008,0.45,0,0,0.9,1.05,1.02),
     hairW:merge([[T(new THREE.SphereGeometry(0.112,8,4,0,Math.PI*2,0,Math.PI*0.6),0,0.18,0.004,0.6,0,0,0.92,1.08,1.04)],
                  [T(new THREE.SphereGeometry(0.06,6,4),0,0.23,0.09)]]),
-    must:T(new THREE.BoxGeometry(0.07,0.018,0.02),0,0.125,-0.098),
+    // bigode em duas metades: cone achatado de cada lado, grosso sob o nariz, afinando e caindo para fora, rente aos gomos da cara
+    must:merge([-1,1].map(s=>[T(new THREE.ConeGeometry(0.011,0.044,6).scale(1,1,0.55).rotateZ(-s*(Math.PI/2+0.28)).rotateY(-s*0.44),s*0.024,0.119,-0.085)])),
     crownDome:T(new THREE.SphereGeometry(1,8,4,0,Math.PI*2,0,Math.PI/2),0,0,0,0,0,0,1,1,1),
     crownCyl:T(new THREE.CylinderGeometry(1,1,1,9),0,0.5,0),
     brim:T(new THREE.CylinderGeometry(1,1,1,12),0,0,0),
@@ -2918,16 +2945,18 @@ const POVO=(function(){
     else for(let s=-1;s<=1;s+=2){const lx=walk?sw*s*0.5:0,lz=walk?0:(s>0?0.04:0.01)*shift,kn=walk?-0.04-0.7*Math.max(0,cw*s):0;   // o joelho dobra quando a perna vai à frente no ar
       leg2(mR,s*0.085+0.018*shift,hipH+bob,lx,kn,lz,o.bot);}}
   // ---------- atualização ----------
-  const tmp={};let festa=null;
-  // festa do prêmio: quem assiste (ou está parado por perto) corre até o 14-bis — ou até ele, se já desceu — e comemora
+  const tmp={};let festa=null,festou=false;
+  // festa do prêmio: quem assiste (ou está parado por perto) corre até o 14-bis — ou até ele, se já desceu — e comemora.
+  // Só na primeira vez que alguém comemora (senão todo voo vira festa); fim=true é o final da missão, que sempre tem festa
   function festaAlvo(){const pl=window._PLT;
     if(pl&&pl.on&&typeof B14!=='undefined')return {x:B14.position.x,z:B14.position.z,r:8.5};
     if(typeof avatar!=='undefined')return {x:avatar.position.x,z:avatar.position.z,r:1.9};return null;}
-  function festaStart(d){const tg=festaAlvo();if(!tg)return 0;festa={t:0,T:40+Math.min(40,(d||25)/6)};let n=0;
+  function festaStart(d,fim){if(festou&&!fim)return 0;const tg=festaAlvo();if(!tg)return 0;let n=0;
     for(const p of P){if(p.stay||!(p.state==='watch'||p.state==='idle'||p.state==='cheer'||p.state==='rush'||p.state==='return'))continue;   // stay: a banda não larga o coreto
       const dx=p.x-tg.x,dz=p.z-tg.z;if(dx*dx+dz*dz>220*220)continue;
       if(!p.home)p.home={x:p.x,y:p.y,z:p.z,yaw:p.yaw,state:p.state==='idle'?'idle':'watch'};
       p.state='rush';p.slotA=Math.random()*6.283;p.slotR=Math.random()*3.2;p.vr=3.2+Math.random()*1.8;p.jump=Math.random()<0.65;p.talk=false;n++;}
+    if(n){festa={t:0,T:40+Math.min(40,(d||25)/6)};festou=true;}          // ninguém por perto: a festa fica para um voo que alguém veja
     return n;}
   // ninguém entra na água (mar da Pequena Rio, lago, rios): se ele foi nadar, quem corria atrás para na beira e comemora dali
   const wet=(x,z)=>{if(typeof water14!=='function')return false;const lv=water14(x,z);return lv!==null&&lv>terrainY(x,z)+0.02;};
@@ -3860,10 +3889,32 @@ const FOREST=(function(){const CH=16,E=2600,CS=2*E/CH,chunks=[];for(let i=0;i<CH
       m.matrixAutoUpdate=false;scene.add(m);return m;};
     c.far=mk(gF,CROWN_MAT,false);c.far.instanceColor=IC;c.mid=mk(gM,CROWN_MAT,false);c.mid.instanceColor=IC;
     c.near=mk(gN,CROWN_MAT,true);c.near.instanceColor=IC;
-    c.trunk=mk(gT,TRUNK_MAT,true);c.near.visible=c.trunk.visible=false;c.cx=sph.center.x;c.cz=sph.center.z;c.r=sph.radius;c.M=c.C=null;}
+    c.trunk=mk(gT,TRUNK_MAT,true);c.near.visible=c.trunk.visible=false;c.cx=sph.center.x;c.cz=sph.center.z;c.r=sph.radius;}
+  // SUPER-BLOCOS: 2×2 e 4×4 blocos inteiros no nível "longe" viram UM draw call (eram ~140 por quadro); no nível "meio",
+  // 2×2 blocos inteiros também (o bloco do meio usa as mesmas instâncias do bloco longe: nenhuma memória a mais)
+  function block(list,mid){const n=list.reduce((a,c)=>a+c.C.length/3,0),M=new Float32Array(n*16),C=new Float32Array(n*3);let k=0;
+    const bb=new THREE.Box3(),v=new THREE.Vector3();
+    for(const c of list){M.set(c.M,k*16);C.set(c.C,k*3);const m=c.C.length/3;
+      for(let i=0;i<m;i++){v.set(c.M[i*16+12],c.M[i*16+13],c.M[i*16+14]);bb.expandByPoint(v);}k+=m;}
+    const sph=new THREE.Sphere();bb.getBoundingSphere(sph);sph.radius+=25;
+    const IM=new THREE.InstancedBufferAttribute(M,16),IC=new THREE.InstancedBufferAttribute(C,3);
+    const mk=geo=>{const g=new THREE.BufferGeometry();for(const a in geo.attributes)g.setAttribute(a,geo.attributes[a]);g.boundingSphere=sph;
+      const m=new THREE.InstancedMesh(g,CROWN_MAT,n);m.instanceMatrix=IM;m.instanceColor=IC;m.receiveShadow=true;m.matrixAutoUpdate=false;
+      m.visible=false;scene.add(m);return m;};
+    return {far:mk(gF),mid:mid?mk(gM):null};}
+  const blocks=B=>{const L=[];for(let bz=0;bz<CH/B;bz++)for(let bx=0;bx<CH/B;bx++){const ch=[];
+    for(let dz=0;dz<B;dz++)for(let dx=0;dx<B;dx++){const c=chunks[bx*B+dx+(bz*B+dz)*CH];if(c.far)ch.push(c);}
+    if(ch.length){const k=ch.length>1?block(ch,B===2):null;L.push({ch,bx,bz,m:k&&k.far,mm:k&&k.mid});}}return L;};
+  const B2=blocks(2),B4=blocks(4);B4.forEach(b=>b.sub=B2.filter(s=>s.bx>>1===b.bx&&s.bz>>1===b.bz));
+  for(const c of chunks)c.M=c.C=null;
+  const lod={n:170,m:1100,f:3600};                // perto (copa detalhada + tronco + sombra) · meio · longe · some (bloco GRÁFICOS ajusta)
+  const show=b=>{const all=!!b.m&&b.ch.every(c=>c.s===0);if(b.m)b.m.visible=all;if(all)return;
+    if(b.sub)b.sub.forEach(show);else for(const c of b.ch)c.far.visible=c.s===0;};
   WORLD.tick.push(()=>{const p=camera.position;for(const c of chunks){if(!c.far)continue;const dd=Math.hypot(p.x-c.cx,p.z-c.cz)-c.r;
-    const nr=dd<170,md=!nr&&dd<1100;c.near.visible=c.trunk.visible=nr;c.mid.visible=md;c.far.visible=!nr&&!md&&dd<3600;}});
-  return {chunks,count};})();
+    const s=c.s=dd<lod.n?2:dd<lod.m?1:dd<lod.f?0:-1;c.near.visible=c.trunk.visible=s===2;c.mid.visible=s===1;c.far.visible=false;}
+    for(const b of B2)if(b.m)b.m.visible=false;B4.forEach(show);
+    for(const b of B2){const all=!!b.mm&&b.ch.every(c=>c.s===1);if(b.mm)b.mm.visible=all;if(all)for(const c of b.ch)c.mid.visible=false;}});
+  return {chunks,count,lod};})();
 
 TM('mata');/* ---- palmeiras-imperiais (22 m) e araucárias ---- */
 (function palmeiras(){const n=PALMS.length;if(!n)return;
@@ -5250,7 +5301,7 @@ function hud14(dt){PLT.hudT+=dt;if(PLT.hudT<1/30)return;const fdt=Math.min(0.2,P
   else if(stall){msg=S.canStall>0.3?'ESTOL DO CANARD — o nariz cai: abaixe a alavanca!':'ESTOL DAS ASAS — baixe o nariz e ganhe velocidade!';alarm=true;}
   else if(S.hold&&S.run)msg='Os ajudantes seguram o avião — gás acima de 60% para soltarem';
   else if(!S.run&&PLT.startT<=0)msg='Motor parado — aumente o gás para dar a partida'+(PLT.ignOff?' (ignição desligada)':'');
-  else msg='Câmera: '+camName14()+' ('+ck+') · roda do mouse: zoom '+(1/CAM14.zoom).toFixed(1).replace('.',',')+'× · vento de '+wdN+' · H esconde o painel';
+  else msg='Câmera '+camName14()+' (1–9, 0 ou '+ck+') · roda do mouse: zoom '+(1/CAM14.zoom).toFixed(1).replace('.',',')+'× · vento de '+wdN+' · H esconde o painel';
   PAN14.draw(fdt,{as:S.as*3.6,gs:PLT.spd*3.6,alt,rpm:S.rpm,run:S.run,starting:PLT.startT>0,vy:S.v.y,hdg,wd,ws,thr:PLT.thr,
     can:(PLT.trim-TRIM14.de+PLT.lev*3.5*D14)/R,trim:(PLT.trim-TRIM14.de)/R,rud:PLT.rud,lean:PLT.lean,dist:dNow,time:tNow,best:PLT.best,
     hold:S.hold,stall,air:PLT.air,msg,alarm});}
@@ -5273,11 +5324,16 @@ addEventListener('keydown',e=>{if(!PLT.on||e.repeat||e.code!=='KeyH'||(typeof se
 /* ---------- [42] câmeras: pontos de vista, cesto e zoom com a roda do mouse ---------- */
 const CAM14={names:['Perseguição','Lateral — como nas fotos de 1906','Frente ¾','Espectador no gramado','No canard, olhando o piloto',
   'Ponta da asa direita','Atrás da hélice','Órbita livre','De cima'],i:0,zoom:1,fovC:72,spot:null,hs:null,pf:0,pn:0,orb:0};
-function camName14(){return thirdP?CAM14.names[CAM14.i]:'Cesto — olhos de Santos Dumont';}
-function cycleFlightCamera(){if(!thirdP){thirdP=true;updMode();}else CAM14.i=(CAM14.i+1)%CAM14.names.length;
-  CAM14.spot=null;player.yaw=0;player.pitch=0;msg14('Câmera: '+camName14(),'Roda do mouse: zoom · mouse: olhar em volta',2);}
+// cada câmera tem o seu número (as teclas de viagem tp0…tp9, que pilotando não teleportam): 1–9 as externas na ordem do C, 0 o cesto
+const CAM14_CESTO=9;
+function camName14(){const k=thirdP?CAM14.i:CAM14_CESTO;
+  return keyName(bindings['tp'+k])+' · '+(thirdP?CAM14.names[CAM14.i]:'Cesto — olhos de Santos Dumont');}
+function setFlightCamera(k){const cesto=k===CAM14_CESTO;if(!cesto&&k>=CAM14.names.length)return;
+  if(thirdP===cesto){thirdP=!cesto;updMode();}if(!cesto)CAM14.i=k;
+  CAM14.spot=null;player.yaw=0;player.pitch=0;msg14('Câmera '+camName14(),'Teclas 1–9 e 0 escolhem a câmera · roda do mouse: zoom',2);}
+function cycleFlightCamera(){setFlightCamera(thirdP?(CAM14.i+1)%CAM14.names.length:CAM14.i);}
 function toggleFlightSeat(){thirdP=!thirdP;updMode();player.yaw=0;player.pitch=0;
-  msg14('Câmera: '+camName14(),'Alterne entre o cesto e a câmera externa em Configurações.',2);}
+  msg14('Câmera '+camName14(),'Alterne entre o cesto e a câmera externa em Configurações.',2);}
 function toggleFlightIgnition(){if(S14.run){S14.run=false;PLT.ignOff=true;
     msg14('Ignição cortada','Como no pouso de 12/11/1906: motor desligado para descer.',3);}
   else{PLT.ignOff=false;if(PLT.thr<0.05)PLT.thr=0.05;}}
@@ -5481,7 +5537,7 @@ const keys={};
 const DEFAULT_BINDINGS={forward:'KeyW',back:'KeyS',left:'KeyA',right:'KeyD',run:'ShiftLeft',jump:'Space',
   interact:'KeyE',board:'KeyF',camera:'KeyC',quickCamera:'KeyV',freeFly:'KeyG',map:'KeyM',mission:'Tab',dayNight:'KeyN',resetPlane:'KeyR',
   elevatorUp:'ArrowUp',elevatorDown:'ArrowDown',rudderLeft:'ArrowLeft',rudderRight:'ArrowRight',
-  trimUp:'KeyQ',trimDown:'KeyZ',ignition:'KeyI',sound:'KeyO',
+  trimUp:'KeyQ',trimDown:'KeyZ',ignition:'KeyI',sound:'KeyO',fps:'F3',
   tp0:'Digit1',tp1:'Digit2',tp2:'Digit3',tp3:'Digit4',tp4:'Digit5',tp5:'Digit6',tp6:'Digit7',tp7:'Digit8',tp8:'Digit9',tp9:'Digit0'};
 const BINDING_GROUPS=[
   ['Exploração',[['forward','Avançar / aumentar gás'],['back','Recuar / reduzir gás'],['left','Esquerda / inclinar corpo'],
@@ -5492,13 +5548,15 @@ const BINDING_GROUPS=[
     ['rudderLeft','Guinar à esquerda'],['rudderRight','Guinar à direita'],['trimUp','Aumentar compensador'],
     ['trimDown','Reduzir compensador'],['ignition','Ligar / cortar ignição'],['sound','Ligar / desligar som'],
     ['resetPlane','Voltar ao campo']]],
-  ['Mundo',[['map','Abrir mapa'],['mission','Mostrar / esconder a missão'],['dayNight','Alternar dia e noite']]],
-  ['Atalhos de viagem',[['tp0','Jardim'],['tp1','Rua e Relógio'],['tp2','Porão'],['tp3','Térreo'],['tp4','Mezanino'],
-    ['tp5','Passarela'],['tp6','Observatório'],['tp7','Campo de Bagatelle'],['tp8','Centro'],['tp9','Mirante']]]
+  ['Mundo',[['map','Abrir mapa'],['mission','Mostrar / esconder a missão'],['dayNight','Alternar dia e noite'],['fps','Mostrar / esconder FPS']]],
+  ['Números: viagem a pé · câmera no 14-bis',[['tp0','Jardim · ✈ Perseguição'],['tp1','Rua e Relógio · ✈ Lateral'],['tp2','Porão · ✈ Frente ¾'],
+    ['tp3','Térreo · ✈ Espectador'],['tp4','Mezanino · ✈ No canard'],['tp5','Passarela · ✈ Ponta da asa'],['tp6','Observatório · ✈ Atrás da hélice'],
+    ['tp7','Campo de Bagatelle · ✈ Órbita livre'],['tp8','Centro · ✈ De cima'],['tp9','Mirante · ✈ Cesto']]]
 ];
 const bindingIds=Object.keys(DEFAULT_BINDINGS),bindingStore='14bis-do-dumont-controles-v1';
 let bindings={...DEFAULT_BINDINGS};
-function validCode(code){return typeof code==='string'&&/^(Key[A-Z]|Digit[0-9]|Numpad[0-9]|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Enter|Tab|Backspace|CapsLock|Comma|Period|Semicolon|Quote|Bracket(Left|Right)|Minus|Equal|Slash|Backslash)$/.test(code);}
+// F1–F10 valem (menos F5 = recarregar); F11/F12 ficam com o navegador (tela cheia, ferramentas)
+function validCode(code){return typeof code==='string'&&/^(Key[A-Z]|Digit[0-9]|Numpad[0-9]|F[1-46-9]|F10|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Enter|Tab|Backspace|CapsLock|Comma|Period|Semicolon|Quote|Bracket(Left|Right)|Minus|Equal|Slash|Backslash)$/.test(code);}
 try{const saved=JSON.parse(localStorage.getItem(bindingStore));if(saved&&typeof saved==='object'){
   const candidate={...DEFAULT_BINDINGS,...saved},codes=bindingIds.map(id=>candidate[id]);
   if(codes.every(validCode)&&new Set(codes).size===codes.length)bindings=candidate;
@@ -5526,7 +5584,7 @@ function renderSettings(){const host=document.getElementById('bindings');host.re
       row.append(name,button);grid.appendChild(row);}}
   const travel=document.getElementById('settingsTravel');travel.replaceChildren();
   for(let i=0;i<10;i++){const button=document.createElement('button');button.type='button';
-    button.textContent=BINDING_GROUPS[3][1][i][1];const small=document.createElement('small');small.textContent=keyName(bindings['tp'+i]);
+    button.textContent=BINDING_GROUPS[3][1][i][1].split(' · ✈')[0];const small=document.createElement('small');small.textContent=keyName(bindings['tp'+i]);
     button.appendChild(small);button.addEventListener('click',()=>{if(window._PLT&&window._PLT.on){settingsNote('Pouse e desembarque antes de viajar.');return;}
       document.getElementById('help').style.display='none';teleport(i);closeSettings();});travel.appendChild(button);}}
 function saveBindings(){try{localStorage.setItem(bindingStore,JSON.stringify(bindings));}catch(_){}
@@ -5595,7 +5653,7 @@ addEventListener('keydown',e=>{
         ' daqui. Chegue perto do avião para mandá-lo de volta ao Campo de Bagatelle, reconstruído.',4);}}
   if(e.code===bindings.ignition&&pil)toggleFlightIgnition();
   if(e.code===bindings.sound&&pil)toggleFlightSound();
-  for(let i=0;i<10;i++)if(e.code===bindings['tp'+i]){teleport(i);break;}});
+  for(let i=0;i<10;i++)if(e.code===bindings['tp'+i]){if(pil)setFlightCamera(i);else teleport(i);break;}});   // pilotando, os números escolhem a câmera
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',clearKeys);
 const canvas=renderer.domElement, help=document.getElementById('help');
@@ -5724,8 +5782,8 @@ const MISSAO=(function(){
       P(new THREE.SphereGeometry(0.0138,16,10),skin,0,-0.0108,0.0005,lid).scale.set(1.12,0.78,0.7);
       E.traverse(k=>{k.castShadow=false;});
       P(new THREE.BoxGeometry(0.036,0.008,0.01),hair,sd*0.036,0.145,-0.09,Hd).rotation.z=sd*-0.12;}   // sobrancelhas
-    if(o.must){const m=P(new THREE.BoxGeometry(0.075,0.018,0.02),hair,0,0.066,-0.097,Hd);m.rotation.x=0.2;
-      for(const sd of[-1,1])P(new THREE.BoxGeometry(0.03,0.014,0.016),hair,sd*0.045,0.058,-0.092,Hd).rotation.z=sd*0.5;}
+    if(o.must)for(const sd of[-1,1]){const m=P(new THREE.ConeGeometry(0.013,0.046,10),hair,sd*0.0257,0.061,-0.0936,Hd);   // bigode: duas metades que caem para fora
+      m.scale.set(1,1,0.55);m.rotation.set(0,-sd*0.36,-sd*(PI/2+0.3));}
     P(new THREE.BoxGeometry(0.03,0.006,0.01),M_('#8a4a44'),0,0.045,-0.1,Hd);                             // boca
     const hc=P(new THREE.SphereGeometry(0.112,16,10,0,PI*2,0,PI*(o.skirt?0.62:0.52)),hair,0,0.115,0.01,Hd);hc.scale.set(0.92,1.1,1.02);hc.rotation.x=o.skirt?0.7:0.45;   // frente para cima: a franja não cobre os olhos
     if(o.skirt)P(new THREE.SphereGeometry(0.065,12,10),hair,0,0.2,0.08,Hd);                          // coque
@@ -5881,7 +5939,7 @@ const MISSAO=(function(){
   // ---------- jornal do fim, telegrama do começo, fogos e fanfarra ----------
   function closeCard(){card.style.display='none';}
   function finish(){ST.done=true;feita=true;
-    if(window._povoFesta)window._povoFesta(80);fireworks(22);fanfare();
+    if(window._povoFesta)window._povoFesta(80,true);fireworks(22);fanfare();   // true: a entrega tem festa mesmo se o povo já comemorou um voo
     const km=(ST.dist/1000).toFixed(2).replace('.',','),min=Math.floor(ST.tAir/60),s=Math.round(ST.tAir%60);
     card.innerHTML=`<div class="page"><div class="mast"><h1>Gazeta da Pequena Rio</h1><p>Capital Federal · novembro de 1906 · edição extraordinária</p></div>
       <h2>O PRIMEIRO CORREIO AÉREO DA HISTÓRIA</h2><p class="sub">Santos Dumont desce do céu em Copacabana com uma encomenda para a irmã — e a cidade inteira corre para a praia</p>
@@ -6280,22 +6338,29 @@ window._prepMaterials=prepMaterials;
 /* junta as peças ESTÁTICAS (paredes, móveis, marcos) em poucas malhas por material e por bairro de 220 m:
    centenas de draw calls a menos. As originais ficam invisíveis, só para as colisões e o chão (raycast). */
 (function mergeStatic(){const skip=new Set([anim.pendulum,window._flag]),groups=new Map(),kids=scene.children.slice();
+  // materiais IGUAIS criados um por peça (flores das hortênsias, da pracinha…) contam como um só. Os com brilho próprio
+  // (emissive) ficam pelo uuid: a noite muda a intensidade de cada um separadamente
+  const tx=t=>t?t.uuid:'';
+  const matSig=m=>m.userData.ownPatch||m.onBeforeCompile!==WP||(m.emissive&&m.emissive.getHex())||!(m.isMeshStandardMaterial||m.isMeshBasicMaterial)?m.uuid:
+    [m.type,m.color.getHex(),m.roughness,m.metalness,tx(m.map),tx(m.normalMap),m.normalScale&&m.normalScale.x,tx(m.bumpMap),m.bumpScale,tx(m.roughnessMap),
+     tx(m.metalnessMap),tx(m.aoMap),tx(m.alphaMap),tx(m.emissiveMap),tx(m.envMap),m.envMapIntensity,m.side,m.vertexColors,m.flatShading,m.fog,m.wireframe,
+     m.polygonOffset,m.polygonOffsetFactor,m.polygonOffsetUnits,m.depthWrite,m.depthTest,m.colorWrite,m.alphaTest,m.toneMapped,m.name].join('|');
   kids.forEach((o,idx)=>{if(!o.isMesh||o.isInstancedMesh||skip.has(o)||!o.visible||o.userData.terrain||o.userData.noMerge)return;
     if(idx>=WORLD.pre14&&idx<WORLD.post14)return;
     const m=o.material,g=o.geometry;if(Array.isArray(m)||m.transparent||m.isShaderMaterial)return;
     const A=g.attributes;if(!A.position||!A.normal||!A.uv||A.position.count>6000)return;
     o.updateMatrixWorld();if(o.matrixWorld.determinant()<=0)return;
-    const key=m.uuid+'|'+(o.castShadow?1:0)+(o.receiveShadow?1:0)+'|'+Math.floor(o.position.x/220)+','+Math.floor(o.position.z/220)+'|'+(A.color?1:0);
+    const key=matSig(m)+'|'+(o.castShadow?1:0)+(o.receiveShadow?1:0)+'|'+Math.floor(o.position.x/220)+','+Math.floor(o.position.z/220)+'|'+(A.color?1:0);
     let L=groups.get(key);if(!L)groups.set(key,L=[]);L.push(o);});
   const v=V3(0,0,0),nm=new THREE.Matrix3();
-  for(const L of groups.values()){if(L.length<3)continue;const hasC=!!L[0].geometry.attributes.color;let n=0;
+  for(const L of groups.values()){if(L.length<2)continue;const hasC=!!L[0].geometry.attributes.color;let n=0;
     const src=L.map(o=>{const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry;n+=g.attributes.position.count;return g;});
     const P=new Float32Array(n*3),N=new Float32Array(n*3),U=new Float32Array(n*2),C=hasC?new Float32Array(n*3):null;let k=0;
     L.forEach((o,i)=>{const g=src[i],p=g.attributes.position,q=g.attributes.normal,u=g.attributes.uv,c=g.attributes.color;nm.getNormalMatrix(o.matrixWorld);
       for(let j=0;j<p.count;j++,k++){v.fromBufferAttribute(p,j).applyMatrix4(o.matrixWorld);P[k*3]=v.x;P[k*3+1]=v.y;P[k*3+2]=v.z;
         v.fromBufferAttribute(q,j).applyMatrix3(nm).normalize();N[k*3]=v.x;N[k*3+1]=v.y;N[k*3+2]=v.z;U[k*2]=u.getX(j);U[k*2+1]=u.getY(j);
         if(C){C[k*3]=c.getX(j);C[k*3+1]=c.getY(j);C[k*3+2]=c.getZ(j);}}
-      o.visible=false;});
+      o.visible=false;o.matrixAutoUpdate=false;});        // original parado: a matriz de colisão já está pronta, não recalcula a cada quadro
     const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setAttribute('normal',new THREE.BufferAttribute(N,3));
     g.setAttribute('uv',new THREE.BufferAttribute(U,2));if(C)g.setAttribute('color',new THREE.BufferAttribute(C,3));g.computeBoundingSphere();
     const mm=new THREE.Mesh(g,L[0].material);mm.castShadow=L[0].castShadow;mm.receiveShadow=L[0].receiveShadow;mm.matrixAutoUpdate=false;scene.add(mm);}})();                       // (para peças criadas depois, ex.: pelo 14-bis)
@@ -6350,7 +6415,10 @@ const POST=(function(){if(!renderer.capabilities.isWebGL2||QS.has('nopost'))retu
   renderer.toneMapping=THREE.NoToneMapping;                 // a curva de filme vai no composite
   const o={type:THREE.HalfFloatType,format:THREE.RGBAFormat,depthBuffer:false,stencilBuffer:false,
     minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,generateMipmaps:false};
-  const main=new THREE.WebGLMultisampleRenderTarget(1,1,Object.assign({},o,{depthBuffer:true}));main.samples=4;
+  // alvo HDR da cena: antisserrilhado MSAA com n amostras (Configurações › Gráficos); 0 = alvo simples, sem resolve
+  const mkMain=n=>{const oo=Object.assign({},o,{depthBuffer:true});if(!n)return new THREE.WebGLRenderTarget(1,1,oo);
+    const r=new THREE.WebGLMultisampleRenderTarget(1,1,oo);r.samples=n;return r;};
+  let main=mkMain(GFXS.aa);
   const rt=()=>new THREE.WebGLRenderTarget(1,1,o),h=rt(),q1=rt(),q2=rt(),e1=rt(),e2=rt(),ray=rt();
   const cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1),sc=new THREE.Scene(),quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2));
   quad.frustumCulled=false;sc.add(quad);
@@ -6395,14 +6463,20 @@ const POST=(function(){if(!renderer.capabilities.isWebGL2||QS.has('nopost'))retu
       gl_FragColor=vec4(c,1.0);}`,{tS:{value:null},tQ:{value:null},tE:{value:null},tR:{value:null},uExpo:{value:1},uBloom:{value:0.32},
       uTime:{value:0},uNight:{value:0},uRay:{value:0},uRayC:{value:new THREE.Color(1,0.76,0.48)},uRes:{value:new THREE.Vector2()}});
   function pass(m,t){quad.material=m;renderer.setRenderTarget(t);renderer.render(sc,cam);}
-  const P={expo:night?1.25:0.95},sp=V3(0,0,0),v2=new THREE.Vector2();
+  const P={expo:night?1.25:0.95,luz:!!GFXS.luz,calls:0,tri:0},sp=V3(0,0,0),v2=new THREE.Vector2();
+  P.setAA=function(n){main.dispose();main=mkMain(n);P.resize();};
   P.resize=function(){renderer.getDrawingBufferSize(v2);const w=Math.max(2,v2.x),hh=Math.max(2,v2.y);P.w=w;P.h=hh;
     main.setSize(w,hh);h.setSize(w>>1,hh>>1);q1.setSize(w>>2,hh>>2);q2.setSize(w>>2,hh>>2);
     e1.setSize(Math.max(1,w>>3),Math.max(1,hh>>3));e2.setSize(Math.max(1,w>>3),Math.max(1,hh>>3));ray.setSize(w>>2,hh>>2);
     mComp.uniforms.uRes.value.set(w,hh);};
   P.resize();
   P.render=function(t){renderer.setRenderTarget(main);renderer.render(scene,camera);
-    if(QS.has('dbg'))window._sceneInfo={tri:renderer.info.render.triangles,calls:renderer.info.render.calls};
+    P.calls=renderer.info.render.calls;P.tri=renderer.info.render.triangles;          // cena + sombra (contador de FPS)
+    if(QS.has('dbg'))window._sceneInfo={tri:P.tri,calls:P.calls};
+    const u=mComp.uniforms;
+    if(!P.luz){u.tS.value=main.texture;u.uBloom.value=0;u.uRay.value=0;                // "efeitos de luz" desligados: só a curva de filme
+      u.uExpo.value=P.expo;u.uTime.value=t;u.uNight.value=ATM.night.value;pass(mComp,null);return;}
+    u.uBloom.value=0.32;
     mBright.uniforms.tS.value=main.texture;mBright.uniforms.uTx.value.set(1/P.w,1/P.h);pass(mBright,h);
     mDown.uniforms.tS.value=h.texture;mDown.uniforms.uTx.value.set(2/P.w,2/P.h);pass(mDown,q1);
     mBlur.uniforms.tS.value=q1.texture;mBlur.uniforms.uDir.value.set(4/P.w,0);pass(mBlur,q2);
@@ -6415,19 +6489,201 @@ const POST=(function(){if(!renderer.capabilities.isWebGL2||QS.has('nopost'))retu
     const ra=ATM.night.value>0.5?0:smooth((facing-0.15)/0.5)*smooth(1.3-Math.max(Math.abs(sp.x),Math.abs(sp.y))*0.55);
     if(ra>0.01){mRay.uniforms.tS.value=main.texture;mRay.uniforms.uSun.value.set(sp.x*0.5+0.5,sp.y*0.5+0.5);
       mRay.uniforms.uAsp.value=P.w/P.h;pass(mRay,ray);}
-    const u=mComp.uniforms;u.tS.value=main.texture;u.tQ.value=q1.texture;u.tE.value=e1.texture;u.tR.value=ray.texture;
+    u.tS.value=main.texture;u.tQ.value=q1.texture;u.tE.value=e1.texture;u.tR.value=ray.texture;
     u.uRay.value=ra>0.01?ra*0.6:0;u.uExpo.value=P.expo;u.uTime.value=t;u.uNight.value=ATM.night.value;pass(mComp,null);};
   return P;})();
 window._POST=POST;window._postResize=()=>{if(POST)POST.resize();};
 document.getElementById('vig').style.display=POST?'none':'block';     // a vinheta vai no shader
+
+/* ============================================================
+   GRÁFICOS — níveis de qualidade, contador de FPS (F3) e cortes de desenho
+   · corte de detalhes: peça que na tela fica menor que ~1 px (Alta) sai do desenho — vai para a layer 1, que a câmera
+     não vê (o raio de colisão enxerga as duas) — e deixa de fazer sombra quando fica pequena demais para ela;
+   · sombra do sol refeita a cada 2 quadros no nível "simples";
+   · resolução dinâmica: só baixa os pixels quando o gargalo é a placa de vídeo (timer de GPU). Quando o gargalo é o
+     processador (draw calls, física, multidão), menos pixels só borrariam a imagem sem ganhar FPS.
+   ============================================================ */
+const GFX=(function(){const S=GFXS,gl=renderer.getContext(),$=id=>document.getElementById(id);
+  const TQ=renderer.capabilities.isWebGL2?gl.getExtension('EXT_disjoint_timer_query_webgl2'):null;
+  const LOD=[{n:110,m:650,f:2300},{n:140,m:850,f:2900},{n:170,m:1100,f:3600},{n:230,m:1500,f:5200}];   // mata: perto · meio · longe
+  const DPX=[4,2.5,1.2,0.6],SPX=[14,9,5,3];            // detalhe: corte do desenho e da sombra (px na tela)
+  ray.layers.enable(1);
+
+  /* ---- medição: intervalo entre quadros, CPU do quadro (JS + envio à GPU) e GPU (timer query) ---- */
+  const N=240,FT=new Float32Array(N),W=[],QP=[];
+  let fi=0,fn=0,lastT=0,t0=0,next=0,cpuS=0,cpuN=0,gpuS=0,gpuN=0,wG=0,wGN=0,q=null;
+  function frameStart(){const now=performance.now();        // começo do animate; true = pular este quadro (limite de FPS)
+    if(S.fpsMax>0){const iv=1000/S.fpsMax;if(now<next-1)return true;next+=iv;if(next<now-iv)next=now;}
+    if(lastT){const d=now-lastT;if(d<500){FT[fi]=d;fi=(fi+1)%N;if(fn<N)fn++;W.push(d);}}
+    lastT=t0=now;return false;}
+  function gpuBegin(){if(TQ&&!q&&(S.fpsShow||(S.dyn&&ADAPT))){q=gl.createQuery();gl.beginQuery(TQ.TIME_ELAPSED_EXT,q);}}
+  function frameEnd(){cpuS+=performance.now()-t0;cpuN++;if(busyN&&--busyN===0)busy.classList.remove('on');
+    if(q){gl.endQuery(TQ.TIME_ELAPSED_EXT);QP.push(q);q=null;}
+    if(QP.length){const dis=gl.getParameter(TQ.GPU_DISJOINT_EXT);          // resultados chegam 1–3 quadros depois
+      while(QP.length&&(QP.length>6||gl.getQueryParameter(QP[0],gl.QUERY_RESULT_AVAILABLE))){const qq=QP.shift();
+        if(!dis&&gl.getQueryParameter(qq,gl.QUERY_RESULT_AVAILABLE)){const ms=gl.getQueryParameter(qq,gl.QUERY_RESULT)/1e6;gpuS+=ms;gpuN++;wG+=ms;wGN++;}
+        gl.deleteQuery(qq);}}}
+
+  /* ---- corte de detalhes (1/4 da lista por quadro; tudo de uma vez se a câmera saltar) ---- */
+  const DL=[],EM=new WeakMap(),dCam=V3(1e9,0,0);let dI=0,dT=0;
+  const glow=m=>!m||Array.isArray(m)||m.isMeshBasicMaterial||(m.emissive&&m.emissiveIntensity>0&&m.emissive.r+m.emissive.g+m.emissive.b>0.01);
+  function collect(){DL.length=0;dI=0;
+    scene.traverse(o=>{if(!(o.isMesh||o.isLine)||o.isInstancedMesh||o.isSkinnedMesh||o.frustumCulled===false||o.userData.terrain||o.userData.noCull)return;
+      let E=EM.get(o);
+      if(!E){if(!o.visible)return;const g=o.geometry;if(!g||!g.attributes||!g.attributes.position)return;
+        if(!g.boundingSphere)g.computeBoundingSphere();const b=g.boundingSphere;if(!b||!isFinite(b.radius))return;
+        E={o,b,mask:o.layers.mask,sh:o.castShadow,cut:false,sc:false};EM.set(o,E);}
+      DL.push(E);});}
+  function cullStep(all){const n=DL.length;if(!n)return;const cp=camera.position;
+    const K=2*innerHeight*(camera.zoom||1)/(camera.fov*Math.PI/180),P=DPX[S.detalhe]/K,Q=SPX[S.detalhe]/K,P2=P*P,Q2=Q*Q;
+    let m=Math.ceil(n/4);if(all||cp.distanceToSquared(dCam)>900){m=n;dI=0;}
+    for(let k=0;k<m;k++){if(dI>=n)dI=0;if(dI===0)dCam.copy(cp);const E=DL[dI++],o=E.o;
+      if(!o.visible&&!E.cut&&!E.sc)continue;
+      const e=o.matrixWorld.elements,c=E.b.center;
+      const x=e[0]*c.x+e[4]*c.y+e[8]*c.z+e[12]-cp.x,y=e[1]*c.x+e[5]*c.y+e[9]*c.z+e[13]-cp.y,z=e[2]*c.x+e[6]*c.y+e[10]*c.z+e[14]-cp.z;
+      const s2=Math.max(e[0]*e[0]+e[1]*e[1]+e[2]*e[2],e[4]*e[4]+e[5]*e[5]+e[6]*e[6],e[8]*e[8]+e[9]*e[9]+e[10]*e[10]);
+      const r2=E.b.radius*E.b.radius*s2,d2=x*x+y*y+z*z;          // tamanho na tela ≈ raio·K/distância
+      const cut=r2<P2*d2&&!glow(o.material);
+      if(cut!==E.cut){E.cut=cut;o.layers.mask=cut?2:E.mask;}
+      if(E.sh){const sc=r2<Q2*d2;if(sc!==E.sc){E.sc=sc;o.castShadow=!sc;}}}}
+
+  /* ---- resolução (fixa ou dinâmica) ---- */
+  let pendPR=0,wT=0,blockDn=0,blockUp=0,probe=null;
+  function setPR(p){PR=p;renderer.setPixelRatio(PR);renderer.setSize(innerWidth,innerHeight);if(POST)POST.resize();}
+  function adapt(now){if(now-wT<1500)return;const n=W.length,g=wGN>=5?wG/wGN:null,s=W.slice().sort((a,b)=>a-b),med=n?s[n>>1]:0;
+    W.length=0;wG=wGN=0;wT=now;
+    if(!S.dyn||!ADAPT||n<15)return;
+    const tgt=1000/(S.fpsMax||60),lo=Math.max(0.5,PR0*0.5);let np=PR;
+    if(probe){const p=probe;probe=null;                                 // sem timer de GPU: testa e confere
+      if(p.dn&&med>p.med*0.93){np=p.pr;blockDn=now+30000;}              // baixou e nada mudou: o gargalo é o processador
+      else if(!p.dn&&med>tgt*1.12){np=p.pr;blockUp=now+30000;}}         // subiu e passou do tempo do quadro: volta
+    else if(med>tgt*1.12&&PR>lo+0.01&&now>blockDn){if(g===null||g>tgt*0.8){np=Math.max(lo,PR*0.85);if(g===null)probe={dn:1,pr:PR,med};}}
+    else if(PR<PR0-0.01&&now>blockUp&&(g!==null?g*1.3<tgt*0.72:med<tgt*1.04)){np=Math.min(PR0,PR*1.12);if(g===null)probe={dn:0,pr:PR,med};}
+    if(Math.abs(np-PR)>0.005)setPR(np);}
+  addEventListener('resize',()=>{const p=Math.min(devicePixelRatio,S.res);if(Math.abs(p-PR0)>0.01){PR0=p;pendPR=p;}});
+
+  /* ---- aplica o nível escolhido ----
+     Sombra liga/desliga SEM trocar shaders: compilar as variantes novas trava o jogo de 8 a 20 s (ANGLE/D3D11). Desligar no
+     meio do jogo só para de desenhar o mapa e o limpa (branco = nada faz sombra); a economia completa vem ao recarregar,
+     quando os shaders já nascem sem sombra. Ligar numa sessão que começou sem sombra é o único caso que compila: avisa antes. */
+  let sf=0,frozen=false,busyN=0;
+  const busy=document.createElement('div');busy.id='gfxBusy';busy.className='hud';busy.textContent='Preparando as sombras… o jogo pode parar alguns segundos';
+  document.body.appendChild(busy);
+  function clearShadow(){const m=sun.shadow.map;if(!m)return;const c=renderer.getClearColor(new THREE.Color()),a=renderer.getClearAlpha(),rt=renderer.getRenderTarget();
+    renderer.setRenderTarget(m);renderer.setClearColor(0xffffff,1);renderer.clear();renderer.setClearColor(c,a);renderer.setRenderTarget(rt);}
+  function shadowSize(){const res=shadowRes(S.sombra);if(res===SHR)return;SHR=res;sun.shadow.mapSize.set(res,res);
+    sun.shadow.normalBias=0.035*Math.sqrt(4096/res);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
+  function apply(first){PR0=Math.min(devicePixelRatio,S.res);pendPR=PR0;probe=null;blockDn=blockUp=0;
+    Object.assign(FOREST.lod,LOD[S.mata]);
+    if(POST){POST.luz=!!S.luz;if(POST._aa!==undefined&&POST._aa!==S.aa)POST.setAA(S.aa);POST._aa=S.aa;}
+    renderer.shadowMap.autoUpdate=false;
+    if(S.sombra===0){if(sun.castShadow&&!first&&!frozen){frozen=true;clearShadow();}}
+    else if(sun.castShadow||first){frozen=false;shadowSize();renderer.shadowMap.needsUpdate=true;}
+    else{busy.classList.add('on');                                   // sessão começou sem sombra: compila depois que o aviso aparecer
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{frozen=false;shadowSize();sun.castShadow=true;renderer.shadowMap.needsUpdate=true;busyN=3;}));}
+    if(!first){collect();cullStep(true);}}
+  function save(){delete S.temp;delete S.auto;const o={nivel:S.nivel};for(const k in GFX_OPTS)o[k]=S[k];
+    try{localStorage.setItem(GFX_KEY,JSON.stringify(o));}catch(_){}}
+  function matchPreset(){for(const n in GFX_PRESETS){const p=GFX_PRESETS[n];if(Object.keys(p).every(k=>p[k]===S[k]))return n;}return 'custom';}
+
+  /* ---- contador de FPS ---- */
+  const css=document.createElement('style');css.textContent=`
+  #fpsBox{top:62px;right:18px;z-index:12;display:none;padding:7px 10px 8px;border-radius:9px;min-width:176px;
+    background:rgba(7,17,12,.82);border:1px solid rgba(150,185,130,.38);box-shadow:0 6px 18px rgba(0,0,0,.35);
+    font:11.5px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;color:#dfe9d2;text-shadow:none;font-variant-numeric:tabular-nums}
+  #fpsBox.on{display:block}
+  #fpsBox .fr{display:flex;align-items:baseline;gap:6px}
+  #fpsBox b{font-size:22px;line-height:1;color:#9fe08a}#fpsBox b.mid{color:#f0cf6a}#fpsBox b.low{color:#ff8a70}
+  #fpsBox .fr span{font-weight:700;color:#cfe3c0}#fpsBox .fr em{margin-left:auto;font-style:normal;color:#b9c8ad}
+  #fpsBox canvas{display:block;width:176px;height:30px;margin:5px 0 3px}
+  #fpsBox .x{color:#b9c8ad;white-space:pre}
+  #gfxBusy{top:22%;left:50%;transform:translateX(-50%);z-index:25;display:none;padding:12px 20px;border-radius:10px;background:rgba(7,17,12,.92);
+    border:1px solid #c89449;font:15px Georgia,serif;color:#f6efda}#gfxBusy.on{display:block}
+  #settings .gfx-presets{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 6px}
+  #settings .gfx-presets button{min-width:82px}
+  #settings .gfx-presets button[aria-checked="true"]{background:#c89449;border-color:#f1cf80;color:#173027;font-weight:700}
+  #settings .gfx-presets small{color:#e2c889;font-size:12px;margin-left:4px}
+  #settings select{font:600 12px sans-serif;cursor:pointer;background:#254535;color:#fff1d0;border:1px solid #7b9a71;border-radius:7px;
+    padding:5px 6px;min-width:120px;max-width:58%}
+  #settings select:disabled{opacity:.5;cursor:default}
+  #settings .gfx-info{margin:6px 0 4px;min-height:18px;color:#cfd8c2}`;
+  document.head.appendChild(css);
+  const box=document.createElement('div');box.id='fpsBox';box.className='hud';
+  box.innerHTML='<div class="fr"><b id="fpsN">–</b><span>FPS</span><em id="fpsMs"></em></div><canvas id="fpsG" width="352" height="60"></canvas><div class="x" id="fpsX"></div>';
+  document.body.appendChild(box);
+  const gc=$('fpsG').getContext('2d'),v2=new THREE.Vector2();let hudT=0;
+  const f1=x=>x.toFixed(1).replace('.',','),NIV={baixa:'Baixa',media:'Média',alta:'Alta',ultra:'Ultra',custom:'Personalizado'};
+  function stats(){let s=0,k=0;for(let i=1;i<=fn&&s<1000;i++){s+=FT[(fi-i+N)%N];k++;}
+    const a=Array.from(FT.subarray(0,fn)).sort((x,y)=>x-y),p99=fn?a[Math.min(fn-1,Math.floor(fn*0.99))]:0;
+    return {fps:k?1000*k/s:0,ms:k?s/k:0,low:p99?1000/p99:0};}
+  function drawHud(){const st=stats(),bN=$('fpsN');bN.textContent=Math.round(st.fps);bN.className=st.fps>=55?'':st.fps>=30?'mid':'low';
+    $('fpsMs').textContent=f1(st.ms)+' ms';
+    const cpu=cpuN?cpuS/cpuN:0,gpu=gpuN?gpuS/gpuN:null;cpuS=cpuN=0;gpuS=gpuN=0;
+    renderer.getDrawingBufferSize(v2);const calls=POST?POST.calls:renderer.info.render.calls,tri=POST?POST.tri:renderer.info.render.triangles;
+    $('fpsX').textContent='1% mais lentos '+Math.round(st.low)+' FPS\nCPU '+f1(cpu)+' ms · GPU '+(gpu===null?'—':f1(gpu)+' ms')+'\n'+
+      calls+' draws · '+f1(tri/1e6)+' M triâng.\n'+v2.x+'×'+v2.y+(PR<PR0-0.01?' ↓dinâmica':'')+' · '+NIV[S.nivel];
+    const w=352,h=60;gc.clearRect(0,0,w,h);gc.fillStyle='rgba(255,255,255,.06)';gc.fillRect(0,0,w,h);
+    const y=ms=>h-Math.min(h,ms/50*h);gc.fillStyle='rgba(255,255,255,.28)';gc.fillRect(0,Math.round(y(1000/60)),w,1);   // linha dos 60 FPS
+    const n=Math.min(fn,176);for(let i=0;i<n;i++){const d=FT[(fi-n+i+N)%N];
+      gc.fillStyle=d<=18?'#7fcf6a':d<=34?'#e9c35a':'#f07a60';gc.fillRect(i*2,y(d),2,h-y(d));}}
+  function setShow(on){S.fpsShow=on?1:0;box.classList.toggle('on',!!on);save();syncUI();if(on)drawHud();}
+  box.classList.toggle('on',!!S.fpsShow);
+  addEventListener('keydown',e=>{if(e.code!==bindings.fps||captureAction||e.repeat)return;e.preventDefault();setShow(!S.fpsShow);},true);
+
+  /* ---- painel Configurações › Gráficos ---- */
+  const LABEL={res:'Resolução da imagem',dyn:'Resolução dinâmica',sombra:'Sombras',aa:'Antisserrilhado',luz:'Brilho e raios de sol',
+    detalhe:'Detalhes ao longe',mata:'Alcance da mata',fpsMax:'Limite de FPS',fpsShow:'Contador de FPS'};
+  const TXT={res:v=>Math.round(v*100)+'%',dyn:v=>v?'Ligada':'Desligada',
+    sombra:v=>['Desligadas','Simples','Boas','Máximas'][v],aa:v=>v?v+'× MSAA':'Desligado',luz:v=>v?'Ligados':'Desligados',
+    detalhe:v=>['Poucos','Médios','Muitos','Todos'][v],mata:v=>['Curto','Médio','Longo','Máximo'][v],
+    fpsMax:v=>v?v+' FPS':'Sem limite',fpsShow:v=>v?'Visível':'Escondido'};
+  const sec=document.createElement('section');sec.setAttribute('aria-labelledby','gfxTitle');
+  sec.innerHTML='<h3 id="gfxTitle">Gráficos</h3><div class="gfx-presets" role="radiogroup" aria-label="Nível de qualidade"></div>'+
+    '<div class="settings-grid" id="gfxGrid"></div><p class="gfx-info" id="gfxInfo" role="status"></p>';
+  const pr=sec.querySelector('.gfx-presets');
+  for(const n of ['baixa','media','alta','ultra']){const b=document.createElement('button');b.type='button';b.textContent=NIV[n];b.dataset.nivel=n;
+    b.setAttribute('role','radio');b.addEventListener('click',()=>{Object.assign(S,GFX_PRESETS[n]);S.nivel=n;apply();save();syncUI();});pr.appendChild(b);}
+  const cust=document.createElement('small');pr.appendChild(cust);
+  const grid=sec.querySelector('#gfxGrid');
+  for(const k in LABEL){const row=document.createElement('label');row.className='bind-row';const sp=document.createElement('span');sp.textContent=LABEL[k];
+    const sel=document.createElement('select');sel.dataset.k=k;
+    for(const v of GFX_OPTS[k]){const o=document.createElement('option');o.value=v;o.textContent=TXT[k](v);sel.appendChild(o);}
+    if(k==='fpsShow')sp.textContent+=' ('+keyName(bindings.fps)+')';
+    if(!POST&&(k==='aa'||k==='luz')){sel.disabled=true;sel.title='Precisa de WebGL2 (sem ?nopost)';}
+    sel.addEventListener('change',()=>{const v=+sel.value;if(k==='fpsShow'){setShow(v);return;}S[k]=v;S.nivel=matchPreset();
+      if(k!=='fpsMax')apply();save();syncUI();});
+    row.append(sp,sel);grid.appendChild(row);}
+  function syncUI(){pr.querySelectorAll('button').forEach(b=>b.setAttribute('aria-checked',b.dataset.nivel===S.nivel?'true':'false'));
+    cust.textContent=S.nivel==='custom'?'Personalizado':'';
+    grid.querySelectorAll('select').forEach(s=>{s.value=String(S[s.dataset.k]);
+      if(s.dataset.k==='fpsShow')s.previousSibling.textContent=LABEL.fpsShow+' ('+keyName(bindings.fps)+')';});
+    info();}
+  function info(){const el=$('gfxInfo');if(!el)return;renderer.getDrawingBufferSize(v2);const st=stats();
+    el.textContent='Imagem de '+v2.x+'×'+v2.y+' px (janela '+innerWidth+'×'+innerHeight+')'+(PR<PR0-0.01?', reduzida pela resolução dinâmica':'')+
+      ' · '+Math.round(st.fps)+' FPS agora. Acima de 100% só vale em telas de alta densidade; a resolução dinâmica tira pixels só quando a'+
+      ' placa de vídeo não dá conta'+(TQ?'':' (este navegador não informa o tempo da GPU: ela reduz, confere e volta se não adiantar)')+'.';}
+  const hdr=settingsEl&&settingsEl.querySelector('.panel header');if(hdr)hdr.after(sec);
+  const _rsG=renderSettings;renderSettings=function(){_rsG();syncUI();};   // abrir o painel / trocar a tecla do FPS atualiza tudo
+
+  /* ---- por quadro (antes do render) ---- */
+  function frame(dt){const now=performance.now();
+    if(pendPR){const p=pendPR;pendPR=0;if(Math.abs(p-PR)>0.005)setPR(p);}
+    adapt(now);
+    dT+=dt;if(dT>10){dT=0;collect();}                      // pega peças criadas depois (encomenda, fogos…)
+    cullStep(false);
+    if(sun.castShadow&&!frozen&&(S.sombra!==1||(++sf&1)))renderer.shadowMap.needsUpdate=true;
+    hudT-=dt||1/60;if(hudT<=0){hudT=0.25;if(S.fpsShow)drawHud();if(settingsOpen)info();}}
+  apply(true);collect();
+  return {frameStart,frameEnd,gpuBegin,frame,pause(){lastT=0;},S,apply:()=>{apply();save();syncUI();},stats,syncUI,DL};})();
+window._GFX=GFX;
 
 /* luz ambiente vinda do próprio céu (IBL): refeita ao trocar dia/noite */
 const PMREM=new THREE.PMREMGenerator(renderer);let ENVRT=null;
 window._envUpdate=function(){const old=ENVRT;ENVRT=PMREM.fromScene(envScene,0,0.1,1000);scene.environment=ENVRT.texture;if(old)old.dispose();};
 window._envUpdate();
 
-/* por quadro: céu e sol seguem a câmera, LOD da mata, nuvens, trem, minimapa, qualidade adaptativa */
-let miniT=0,bigT=0,adT=0,adN=0,adS=0,lastFT=performance.now();
+/* por quadro: céu e sol seguem a câmera, LOD da mata, nuvens, trem, minimapa, qualidade (bloco GRÁFICOS) */
+let miniT=0,bigT=0;
 const ADAPT=!(QS.has('shot')||QS.has('cam')||QS.has('fly14')||QS.has('noadapt'));
 function frameWorld(dt){const t=clock.elapsedTime,P=window._PLT,pil=!!(P&&P.on);
   ATM.time.value=t;ATM.wTime.value=t;
@@ -6438,14 +6694,12 @@ function frameWorld(dt){const t=clock.elapsedTime,P=window._PLT,pil=!!(P&&P.on);
   const mini=document.getElementById('mini'),show=pil||player.fly||!!RIDE.cur;mini.style.display=show?'block':'none';
   miniT-=dt;if(show&&miniT<=0){miniT=0.1;drawMini();}
   bigT-=dt;if(bigOpen&&bigT<=0){bigT=0.25;drawBig();}
-  // qualidade adaptativa ANTES do render: redimensionar o canvas apaga o que já foi desenhado,
+  // resolução, corte de detalhes e sombra ANTES do render: redimensionar o canvas apaga o que já foi desenhado,
   // e se isso acontecer depois do render o navegador exibe esse quadro vazio (a tela "pisca" preto)
-  const now=performance.now();adS+=(now-lastFT)/1000;lastFT=now;adN++;adT+=dt;
-  if(ADAPT&&adT>3){const avg=adS/adN;let np=PR;
-    if(avg>0.036&&PR>0.6)np=Math.max(0.6,PR-0.2);else if(avg<0.017&&PR<PR0)np=Math.min(PR0,PR+0.1);
-    if(np!==PR){PR=np;renderer.setPixelRatio(PR);renderer.setSize(innerWidth,innerHeight);if(POST)POST.resize();}
-    adT=0;adS=0;adN=0;}
+  GFX.frame(dt);
+  GFX.gpuBegin();
   if(POST)POST.render(t);else{renderer.setRenderTarget(null);renderer.render(scene,camera);}
+  GFX.frameEnd();
   if(QS.has('dbg')&&t>2&&!window._dbgDone){window._dbgDone=1;const d=document.createElement('pre');d.id='dbg';
     d.textContent=JSON.stringify({scene:window._sceneInfo,casas:HOUSES.length,arvores:FOREST.count,palmeiras:PALMS.length,araucarias:ARAUC.length,
       lampioes:LAMPS.length,geometrias:renderer.info.memory.geometries,texturas:renderer.info.memory.textures,programas:renderer.info.programs.length,
@@ -6458,7 +6712,8 @@ function animate(){requestAnimationFrame(animate);
   // capa de abertura: é uma foto opaca por cima do canvas. Depois de 60 quadros de aquecimento (shaders compilados,
   // texturas na GPU, veículos assentados) o mundo não é simulado nem desenhado por trás dela — senão a GPU
   // renderiza sombras, MSAA e bloom a 60 quadros/s para ninguém ver. ?dbg segue rodando para medir a cena.
-  if(coverUp()&&!QS.has('dbg')&&++coverWarm>60){clock.getDelta();lastFT=performance.now();return;}
+  if(coverUp()&&!QS.has('dbg')&&++coverWarm>60){clock.getDelta();GFX.pause();return;}
+  if(GFX.frameStart())return;                         // limite de FPS (Configurações › Gráficos) + medição do quadro
   const dt=Math.min(clock.getDelta(),0.05);
   if(settingsOpen||bigOpen){frameWorld(0);return;}
   const sp=player.fly?flySpeed():(held('run')?6.2:1.8);             // andar 1,8 m/s (passo apressado de quem tem 1,52 m); correr = sprint
