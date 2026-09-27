@@ -8,7 +8,9 @@
 <meta name="description" content="Jogo 3D da Encantada, a casa de Santos Dumont em Petrópolis, com o 14-bis voável. Escolha a versão 1 (original) ou a versão 2 (atual).">
 <script>
   // links antigos com parâmetros (index.html?shot=…, ?fly14=1, ?dbg=1 …) continuam abrindo o jogo atual
-  if (location.search) location.replace('v2.html' + location.search + location.hash);
+  // aberto direto do disco (file://) a pasta não abre sozinha o index.html: aponta para ele
+  const LOCAL = location.protocol === 'file:' ? 'index.html' : '';
+  if (location.search) location.replace('v2/' + LOCAL + location.search + location.hash);
 </script>
 <style>
   :root{--ink:#f8eed6;--muted:#d9ccae;--gold:#efcf91;--gold2:#c89449;--deep:#05161c;--teal:#102d35;--line:rgba(239,207,145,.35)}
@@ -67,7 +69,7 @@
   </header>
 
   <section class="versions" aria-label="Versões do jogo">
-    <a class="ver old" href="v1.html">
+    <a class="ver old" href="v1/">
       <figure>
         <img src="assets/versao-1.jpg" alt="A Encantada na versão 1: a casa branca de janelas verdes no alto do jardim" width="1120" height="630">
         <span class="badge">Versão 1.0</span>
@@ -86,7 +88,7 @@
       </div>
     </a>
 
-    <a class="ver new" href="v2.html">
+    <a class="ver new" href="v2/">
       <figure>
         <img src="assets/versao-2.jpg" alt="O 14-bis decolando rumo ao centro de Petrópolis, com a Catedral ao fundo" width="1120" height="630">
         <span class="badge">Nova · Versão 2</span>
@@ -111,5 +113,6 @@
     Código aberto sob licença MIT · <a href="https://github.com/inteligenciamilgrau/14bis">github.com/inteligenciamilgrau/14bis</a>
   </footer>
 </main>
+<script>if (LOCAL) for (const a of document.querySelectorAll('a.ver')) a.href = a.getAttribute('href') + LOCAL;</script>
 </body>
 </html>

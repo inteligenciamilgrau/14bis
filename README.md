@@ -18,22 +18,24 @@ nenhuma dependência externa: nada de CDN, fontes remotas ou rastreadores.
 | Arquivo | Versão | O que é |
 |---|---|---|
 | `index.html` | — | Página de abertura para escolher a versão |
-| `v2.html` | **Versão 2** (atual) | A serra de Petrópolis para voar, o 14-bis com física real, a cidade e os marcos (este README descreve esta versão) |
-| `v1.html` | **Versão 1.0** (histórico) | A primeira versão: a casa A Encantada e o 14-bis no Campo de Bagatelle, congelada como estava na tag git `v1.0` |
+| `v2/index.html` | **Versão 2** (atual) — endereço `/v2/` | A serra de Petrópolis para voar, o 14-bis com física real, a cidade e os marcos (este README descreve esta versão) |
+| `v1/index.html` | **Versão 1.0** (histórico) — endereço `/v1/` | A primeira versão: a casa A Encantada e o 14-bis no Campo de Bagatelle, congelada como estava na tag git `v1.0` |
 
 **Autoria:** a versão 1 foi criada pelo **Claude Fable 5**. A versão 2 é a
 continuação do projeto do Fable 5, feita pelo **Claude Opus 5.5**.
 
 A versão 1 é guardada só como registro, então não a edite. O código original
 dela fica na tag: `git checkout v1.0`. Links antigos com parâmetros
-(`index.html?shot=…`) são redirecionados para `v2.html`.
+(`index.html?shot=…`) são redirecionados para `v2/`, e os endereços antigos
+`v1.html` e `v2.html` também continuam funcionando (redirecionam para `v1/` e `v2/`).
 
 ## Jogar online (GitHub Pages)
 O jogo é 100% estático, então basta servir a raiz do repositório:
 1. Crie o repositório no GitHub e envie estes arquivos.
 2. Em **Settings → Pages**, escolha *Deploy from a branch*, branch `main`,
    pasta `/ (root)`.
-3. Acesse `https://SEU-USUARIO.github.io/NOME-DO-REPO/`.
+3. Acesse `https://SEU-USUARIO.github.io/NOME-DO-REPO/` (página de escolha),
+   `…/NOME-DO-REPO/v2/` (versão 2) ou `…/NOME-DO-REPO/v1/` (versão 1).
 
 ## Controles
 No jogo, abra **⚙ Configurações** para consultar e remapear as teclas, além de
@@ -179,8 +181,8 @@ A resolução se ajusta sozinha se o computador não der conta.
 - Chegue perto dos pontos de interesse para ver as **legendas históricas**.
 
 ## Extras para depuração
-`v2.html?shot=N` (0–9) abre direto em um dos pontos de vista;
-`v2.html?cam=x,y,z,yaw,pitch` posiciona a câmera livremente;
+`v2/?shot=N` (0–9) abre direto em um dos pontos de vista;
+`v2/?cam=x,y,z,yaw,pitch` posiciona a câmera livremente;
 `&night=1` modo noturno; `&closed=1` fecha portas e janelas;
 `&fire=0` lareira apagada; `&fly14=1` abre com o 14-bis em pleno voo;
 `&map=1` abre o mapa; `&wcam=N` (0–3) escolhe a câmera a pé; `&wheel=N` simula N giros da rodinha; `&dbg=1` mostra no DOM (`#dbg`) triângulos, draw

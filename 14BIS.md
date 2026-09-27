@@ -3,7 +3,7 @@
 Dossiê técnico para a réplica voável do 14-bis no mundo 3D da Encantada.
 Cada peça é numerada para conferência durante a construção.
 
-> **STATUS: v2 — física real ✅** — integrada ao `v2.html` (seção
+> **STATUS: v2 — física real ✅** — integrada ao `v2/index.html` (seção
 > `14-BIS`, entre `/*FM14-BEGIN*/` e "luzes internas"). Modelo de voo de 6
 > graus de liberdade com as medidas publicadas do avião (seção 6), modelo 3D
 > refeito a partir das fotos de 1906 e 9 câmeras. As peças [1]–[48] estão

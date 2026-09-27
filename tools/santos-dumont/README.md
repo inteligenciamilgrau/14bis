@@ -16,7 +16,7 @@ O pacote não fica no repositório (cerca de 50 MB): guarde o `human_base_meshes
 | `stage3.py` | recorta o corpo escondido, reduz a malha, calcula os pesos de skinning e as cores dos vértices, depois exporta tudo quantizado em base64 para o arquivo `.js` (ossos dos dedos com `ax`, eixo de flexão, e `t`, ponta da falange) |
 
 A textura risca-de-giz, a palha do panamá, os fios de cabelo, a íris e o xadrez da gravata são desenhados em canvas
-no próprio jogo (bloco `SANTOS DUMONT jogável` em `v2.html`).
+no próprio jogo (bloco `SANTOS DUMONT jogável` em `v2/index.html`).
 
 O **movimento** não é animação do Blender: é feito em código no mesmo bloco — pernas por IK com o pé travado no chão
 (caminhada e corrida casadas com a velocidade), braços em pêndulo, poses de mão (relaxada, punho, aberta) e, no 14-bis,
