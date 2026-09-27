@@ -5125,7 +5125,7 @@ const SND14={ctx:null,mute:false,
 if(QS.has('b14'))addEventListener('load',()=>{const a=QS.get('b14').split(',').map(Number);
   document.getElementById('help').style.display='none';window._board14();
   if(a[0]<0)thirdP=false;else CAM14.i=Math.min(CAM14.names.length-1,a[0]|0);
-  if(a[1]>0){window._fly14();S14.p.y=planeGround(S14.p.x,S14.p.z)+a[1];sync14();}
+  if(a[1]>0){window._fly14();S14.p.y=planeGround(S14.p.x,S14.p.z)+Math.min(a[1],3000);sync14();}
   if(QS.has('b14run')){PLT.thr=1;S14.run=true;S14.rpm=1300;}
   updMode();});
 
@@ -5806,11 +5806,12 @@ window._prepMaterials=prepMaterials;
   if(q.has('shot')){document.getElementById('help').style.display='none';thirdP=false;
     teleport(Math.min(9,Math.max(0,+q.get('shot')||0)));}
   if(q.has('cam')){const v=q.get('cam').split(',').map(Number);
+    if(v.length>=3&&v.slice(0,5).every(Number.isFinite)){               // ?cam=abc daria posição NaN (tela preta)
     document.getElementById('help').style.display='none';thirdP=false;
-    player.pos.set(v[0],v[1],v[2]);player.yaw=v[3]||0;player.pitch=v[4]||0;player.fly=true;}
+    player.pos.set(v[0],v[1],v[2]);player.yaw=v[3]||0;player.pitch=v[4]||0;player.fly=true;}}
   if(q.has('tp')){thirdP=true;updMode();}
   if(q.has('wcam'))setWalkCam(Math.max(0,Math.min(WALKCAM.length-1,+q.get('wcam')||0)));
-  if(q.has('wheel')){const n=+q.get('wheel')||0;for(let i=0;i<Math.abs(n);i++)dispatchEvent(new WheelEvent('wheel',{deltaY:Math.sign(n)*100}));}
+  if(q.has('wheel')){const n=Math.max(-50,Math.min(50,Math.trunc(+q.get('wheel')||0)));for(let i=0;i<Math.abs(n);i++)dispatchEvent(new WheelEvent('wheel',{deltaY:Math.sign(n)*100}));}   // limite: ?wheel=1e9 travava a aba (50 giros já cobrem todo o zoom)
   if(q.has('closed'))doors.forEach(d=>{d.isOpen=false;d.pivots.forEach((pv,i)=>pv.rotation.y=d.closedA[i]);});
   if(q.get('fire')==='0'&&window._toggleFire)window._toggleFire();
   if(q.has('fly14')){document.getElementById('help').style.display='none';

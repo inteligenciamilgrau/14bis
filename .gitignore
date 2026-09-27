@@ -11,6 +11,19 @@ fotos/
 # (se um dia quiser screenshots no README, libere um caminho específico, ex.:
 #  !docs/screenshots/*.png )
 
+# ---- Segredos e configurações locais: NUNCA subir ----
+.env
+.env.*
+*.pem
+*.key
+.claude/settings.local.json
+
+# ---- Python e Blender (intermediários do tools/santos-dumont) ----
+__pycache__/
+*.py[cod]
+*.blend
+*.blend1
+
 # ---- Lixo de sistema operacional ----
 Thumbs.db
 Desktop.ini
