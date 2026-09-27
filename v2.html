@@ -4523,16 +4523,18 @@ function frameWorld(dt){const t=clock.elapsedTime,P=window._PLT,pil=!!(P&&P.on);
   const mini=document.getElementById('mini'),show=pil||player.fly;mini.style.display=show?'block':'none';
   miniT-=dt;if(show&&miniT<=0){miniT=0.1;drawMini();}
   bigT-=dt;if(bigOpen&&bigT<=0){bigT=0.25;drawBig();}
-  if(POST)POST.render(t);else{renderer.setRenderTarget(null);renderer.render(scene,camera);}
-  if(QS.has('dbg')&&t>2&&!window._dbgDone){window._dbgDone=1;const d=document.createElement('pre');d.id='dbg';
-    d.textContent=JSON.stringify({scene:window._sceneInfo,casas:HOUSES.length,arvores:FOREST.count,palmeiras:PALMS.length,araucarias:ARAUC.length,
-      lampioes:LAMPS.length,geometrias:renderer.info.memory.geometries,texturas:renderer.info.memory.textures,programas:renderer.info.programs.length,
-      carga_ms:Math.round(window._loadMs||0),etapas:_TM.join(' '),cidade:WORLD.dbgTown,pr:PR,webgl2:renderer.capabilities.isWebGL2});document.body.appendChild(d);}
+  // qualidade adaptativa ANTES do render: redimensionar o canvas apaga o que já foi desenhado,
+  // e se isso acontecer depois do render o navegador exibe esse quadro vazio (a tela "pisca" preto)
   const now=performance.now();adS+=(now-lastFT)/1000;lastFT=now;adN++;adT+=dt;
   if(ADAPT&&adT>3){const avg=adS/adN;let np=PR;
     if(avg>0.036&&PR>0.6)np=Math.max(0.6,PR-0.2);else if(avg<0.017&&PR<PR0)np=Math.min(PR0,PR+0.1);
     if(np!==PR){PR=np;renderer.setPixelRatio(PR);renderer.setSize(innerWidth,innerHeight);if(POST)POST.resize();}
-    adT=0;adS=0;adN=0;}}
+    adT=0;adS=0;adN=0;}
+  if(POST)POST.render(t);else{renderer.setRenderTarget(null);renderer.render(scene,camera);}
+  if(QS.has('dbg')&&t>2&&!window._dbgDone){window._dbgDone=1;const d=document.createElement('pre');d.id='dbg';
+    d.textContent=JSON.stringify({scene:window._sceneInfo,casas:HOUSES.length,arvores:FOREST.count,palmeiras:PALMS.length,araucarias:ARAUC.length,
+      lampioes:LAMPS.length,geometrias:renderer.info.memory.geometries,texturas:renderer.info.memory.textures,programas:renderer.info.programs.length,
+      carga_ms:Math.round(window._loadMs||0),etapas:_TM.join(' '),cidade:WORLD.dbgTown,pr:PR,webgl2:renderer.capabilities.isWebGL2});document.body.appendChild(d);}}
 function flySpeed(){const a=player.pos.y-terrainY(player.pos.x,player.pos.z);return Math.min(60,5.6*(1+Math.max(0,a-8)/14));}
 
 function animate(){requestAnimationFrame(animate);
