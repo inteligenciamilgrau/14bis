@@ -2766,15 +2766,15 @@ const POVO=(function(){
     if(pl&&pl.on&&typeof B14!=='undefined')return {x:B14.position.x,z:B14.position.z,r:8.5};
     if(typeof avatar!=='undefined')return {x:avatar.position.x,z:avatar.position.z,r:1.9};return null;}
   function festaStart(d){const tg=festaAlvo();if(!tg)return 0;festa={t:0,T:40+Math.min(40,(d||25)/6)};let n=0;
-    for(const p of P){if(!(p.state==='watch'||p.state==='idle'||p.state==='cheer'||p.state==='rush'||p.state==='return'))continue;
+    for(const p of P){if(p.stay||!(p.state==='watch'||p.state==='idle'||p.state==='cheer'||p.state==='rush'||p.state==='return'))continue;   // stay: a banda não larga o coreto
       const dx=p.x-tg.x,dz=p.z-tg.z;if(dx*dx+dz*dz>220*220)continue;
-      if(!p.home)p.home={x:p.x,z:p.z,yaw:p.yaw,state:p.state==='idle'?'idle':'watch'};
+      if(!p.home)p.home={x:p.x,y:p.y,z:p.z,yaw:p.yaw,state:p.state==='idle'?'idle':'watch'};
       p.state='rush';p.slotA=Math.random()*6.283;p.slotR=Math.random()*3.2;p.vr=3.2+Math.random()*1.8;p.jump=Math.random()<0.65;p.talk=false;n++;}
     return n;}
   function festaStep(p,dt,ft){
     if(p.state==='return'){const h=p.home,dx=h.x-p.x,dz=h.z-p.z,dd=Math.hypot(dx,dz);
-      if(dd<0.3){p.state=h.state;p.x=h.x;p.z=h.z;p.yaw=h.yaw;p.talk=h.state==='idle';p.home=null;}
-      else{const k=Math.min(dd,1.35*dt);p.x+=dx/dd*k;p.z+=dz/dd*k;p.yaw=Math.atan2(-dx,-dz);p.ph+=dt*1.35*4.1;}
+      if(dd<0.3){p.state=h.state;p.x=h.x;p.z=h.z;p.y=h.y;p.yaw=h.yaw;p.talk=h.state==='idle';p.home=null;return;}   // volta à altura de onde saiu (degrau, palanque)
+      const k=Math.min(dd,1.35*dt);p.x+=dx/dd*k;p.z+=dz/dd*k;p.yaw=Math.atan2(-dx,-dz);p.ph+=dt*1.35*4.1;
       p.y=terrainY(p.x,p.z);return;}
     if(!ft){p.state='return';return;}
     const R=ft.r+p.slotR,sx=ft.x+Math.sin(p.slotA)*R,sz=ft.z+Math.cos(p.slotA)*R,dx=sx-p.x,dz=sz-p.z,dd=Math.hypot(dx,dz);
@@ -3064,7 +3064,7 @@ const PRIO=(function(){
     const g=new THREE.LatheGeometry(pts,56),p=g.attributes.position,c=Math.cos(o.rot),s=Math.sin(o.rot);
     for(let i=0;i<p.count;i++){let px=p.getX(i),pz=p.getZ(i);const py=p.getY(i),t=Math.min(1,py/o.H),an=Math.atan2(pz,px);
       let k=1+0.075*pn(an*2.3+o.seed,t*5)+0.035*pn(an*7+o.seed*1.7,t*13)+(o.ridge||0)*Math.pow(Math.abs(Math.sin(an*3+o.seed)),6)*(1-t);
-      if(o.tail){const e=Math.cos(an-o.tail[0]);if(e>0)k*=1+o.tail[1]*Math.pow(e,3)*Math.pow(1-t,1.6);}   // espigão de um lado só
+      if(o.tail){const e=Math.cos(an-o.tail[0]);if(e>0)k*=1+o.tail[1]*Math.pow(e,3)*Math.pow(1-t,o.tail[2]||1.6);}   // espigão de um lado só
       px*=k*o.sx;pz*=k*o.sz;p.setXYZ(i,px*c+pz*s+o.lean[0]*t*t*o.H,py,-px*s+pz*c+o.lean[1]*t*t*o.H);}
     g.computeVertexNormals();
     const n=g.attributes.normal,col=new Float32Array(p.count*3),G1=lin('#3f6433'),G2=lin('#5e7d40'),K1=lin('#8b867b'),K2=lin('#5f5a52');
@@ -3116,8 +3116,11 @@ const PRIO=(function(){
   lmMark(pao.top[0],pao.top[2],'Pão de Açúcar','⛰');
   // ---------- 2) CORCOVADO e o CRISTO REDENTOR ----------
   const cx0=452,cz0=-1606;let cy0=1e9;for(let a=0;a<12;a++)cy0=Math.min(cy0,ty(cx0+Math.cos(a/12*PI*2)*70,cz0+Math.sin(a/12*PI*2)*70));
-  const corc=rockMount({x:cx0,z:cz0,y0:cy0-4,R:112,H:162,sx:0.9,sz:1.0,rot:-0.3,lean:[-0.2,0.05],seed:5.3,veg:0.5,ridge:0.1,tail:[0.25,0.9],name:'o Corcovado',
-    prof:[[1,0],[0.8,0.1],[0.62,0.2],[0.47,0.31],[0.36,0.43],[0.28,0.56],[0.215,0.68],[0.16,0.79],[0.11,0.88],[0.07,0.95],[0.052,0.99],[0.05,1],[0,1.002]]});
+  // perfil: encosta de mata côncava embaixo e, em cima, a "corcova" de granito — paredes íngremes que se arredondam num cume
+  // largo (o terraço do mirante, 13 m, assenta inteiro na rocha), em vez de afinar numa agulha. O espigão (rumo a Santa Teresa)
+  // sobe até perto do topo: de um lado a parede de pedra, do outro a crista que liga o morro ao maciço — como o de verdade
+  const corc=rockMount({x:cx0,z:cz0,y0:cy0-4,R:112,H:152,sx:0.9,sz:1.0,rot:-0.3,lean:[-0.13,0.04],seed:5.3,veg:0.55,ridge:0.1,tail:[0.25,1.0,0.9],name:'o Corcovado',
+    prof:[[1,0],[0.8,0.09],[0.64,0.18],[0.53,0.28],[0.46,0.38],[0.41,0.48],[0.375,0.58],[0.345,0.68],[0.31,0.77],[0.265,0.85],[0.21,0.915],[0.155,0.955],[0.12,0.982],[0.085,0.995],[0,1]]});
   const CT=corc.top;
   box(13,1.2,13,M.path,CT[0],CT[1]-0.3,CT[2],{walk:true,solid:false});                     // o terraço do mirante
   for(const s of[-1,1]){dec(13,0.9,0.25,M.stucco,CT[0],CT[1]+0.75,CT[2]+s*6.4);dec(0.25,0.9,13,M.stucco,CT[0]+s*6.4,CT[1]+0.75,CT[2]);}
@@ -3442,7 +3445,7 @@ const PRIO=(function(){
     for(let k=0;k<22;k++){const a=k/22*PI*2+Rn()*0.2,r=6+Rn()*4.5,x=CORETO.x+Math.cos(a)*r,z=CORETO.z+Math.sin(a)*r;
       POVO.add({kind:KIND(),state:k%3?'idle':'watch',target:tgt,talk:true,x,y:ty(x,z),z,yaw:yawTo(x,z,CORETO.x,CORETO.z)+(Rn()-0.5)});}
     for(let k=0;k<5;k++){const a=k/5*PI*2,x=CORETO.x+Math.cos(a)*2.2,z=CORETO.z+Math.sin(a)*2.2;          // a banda no coreto
-      const p=POVO.add({kind:'m',state:'idle',talk:true,x,y:ty(CORETO.x,CORETO.z)+1.1,z,yaw:yawTo(x,z,CORETO.x,CORETO.z)+PI});
+      const p=POVO.add({kind:'m',state:'idle',talk:true,stay:true,x,y:ty(CORETO.x,CORETO.z)+1.1,z,yaw:yawTo(x,z,CORETO.x,CORETO.z)+PI});
       if(p){p.out.top=new THREE.Color(0x1f2a4a).convertSRGBToLinear();p.out.bot=p.out.top.clone();p.out.hat={t:'cyl',r:0.11,h:0.09,c:new THREE.Color(0x1f2a4a).convertSRGBToLinear(),b:new THREE.Color(0xd8b25c).convertSRGBToLinear(),br:0.03,cap:1};}}
     const grp=(cx,cz,n)=>{const r=0.5+n*0.07,a0=Rn()*6.28;for(let j=0;j<n;j++){const a=a0+j/n*6.283,x=cx+Math.sin(a)*r,z=cz+Math.cos(a)*r;
       POVO.add({kind:KIND(),state:'idle',talk:true,x,y:ty(x,z),z,yaw:Math.atan2(-(cx-x),-(cz-z))});}};
@@ -5168,7 +5171,7 @@ player.yaw=Math.atan2(-(-14-player.pos.x),-(32-player.pos.z));player.pitch=0.05;
 let thirdP=true;   // Santos Dumont visível em 3ª pessoa por padrão (V alterna)
 const keys={};
 const DEFAULT_BINDINGS={forward:'KeyW',back:'KeyS',left:'KeyA',right:'KeyD',run:'ShiftLeft',jump:'Space',
-  interact:'KeyE',board:'KeyF',camera:'KeyC',quickCamera:'KeyV',freeFly:'KeyG',map:'KeyM',dayNight:'KeyN',resetPlane:'KeyR',
+  interact:'KeyE',board:'KeyF',camera:'KeyC',quickCamera:'KeyV',freeFly:'KeyG',map:'KeyM',mission:'Tab',dayNight:'KeyN',resetPlane:'KeyR',
   elevatorUp:'ArrowUp',elevatorDown:'ArrowDown',rudderLeft:'ArrowLeft',rudderRight:'ArrowRight',
   trimUp:'KeyQ',trimDown:'KeyZ',ignition:'KeyI',sound:'KeyO',
   tp0:'Digit1',tp1:'Digit2',tp2:'Digit3',tp3:'Digit4',tp4:'Digit5',tp5:'Digit6',tp6:'Digit7',tp7:'Digit8',tp8:'Digit9',tp9:'Digit0'};
@@ -5181,13 +5184,13 @@ const BINDING_GROUPS=[
     ['rudderLeft','Guinar à esquerda'],['rudderRight','Guinar à direita'],['trimUp','Aumentar compensador'],
     ['trimDown','Reduzir compensador'],['ignition','Ligar / cortar ignição'],['sound','Ligar / desligar som'],
     ['resetPlane','Voltar ao campo']]],
-  ['Mundo',[['map','Abrir mapa'],['dayNight','Alternar dia e noite']]],
+  ['Mundo',[['map','Abrir mapa'],['mission','Mostrar a missão'],['dayNight','Alternar dia e noite']]],
   ['Atalhos de viagem',[['tp0','Jardim'],['tp1','Rua e Relógio'],['tp2','Porão'],['tp3','Térreo'],['tp4','Mezanino'],
     ['tp5','Passarela'],['tp6','Observatório'],['tp7','Campo de Bagatelle'],['tp8','Centro'],['tp9','Mirante']]]
 ];
 const bindingIds=Object.keys(DEFAULT_BINDINGS),bindingStore='14bis-do-dumont-controles-v1';
 let bindings={...DEFAULT_BINDINGS};
-function validCode(code){return typeof code==='string'&&/^(Key[A-Z]|Digit[0-9]|Numpad[0-9]|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Enter|Backspace|CapsLock|Comma|Period|Semicolon|Quote|Bracket(Left|Right)|Minus|Equal|Slash|Backslash)$/.test(code);}
+function validCode(code){return typeof code==='string'&&/^(Key[A-Z]|Digit[0-9]|Numpad[0-9]|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Enter|Tab|Backspace|CapsLock|Comma|Period|Semicolon|Quote|Bracket(Left|Right)|Minus|Equal|Slash|Backslash)$/.test(code);}
 try{const saved=JSON.parse(localStorage.getItem(bindingStore));if(saved&&typeof saved==='object'){
   const candidate={...DEFAULT_BINDINGS,...saved},codes=bindingIds.map(id=>candidate[id]);
   if(codes.every(validCode)&&new Set(codes).size===codes.length)bindings=candidate;
@@ -5346,10 +5349,15 @@ const MISSAO=(function(){
   #misCard ul{margin:6px 0;padding-left:20px}#misCard li{margin:2px 0}
   #misCard button{display:block;margin:16px auto 0;padding:10px 22px;border:1px solid #f7dd9e;border-radius:7px;cursor:pointer;
     background:linear-gradient(#efd194,#c89449);color:#173027;font:700 15px Georgia,serif}
-  #misTel{position:absolute;top:128px;left:50%;transform:translateX(-50%) rotate(-1deg);z-index:6;pointer-events:none;opacity:0;transition:opacity .6s;
-    width:min(520px,calc(100vw - 40px));box-sizing:border-box;padding:12px 18px;font:14px 'Courier New',monospace;color:#2a2418;line-height:1.45;
+  #misTel{position:absolute;top:110px;left:50%;transform:translateX(-50%) rotate(-1deg);z-index:6;pointer-events:none;opacity:0;transition:opacity .4s;
+    width:min(520px,calc(100vw - 40px));box-sizing:border-box;padding:12px 18px 10px;font:14px 'Courier New',monospace;color:#2a2418;line-height:1.45;
     background:#efe3c2;box-shadow:0 10px 30px rgba(0,0,0,.55),inset 0 0 0 2px #b89c5c}
-  #misTel b{display:block;font-family:Georgia,serif;letter-spacing:.2em;font-size:12px;border-bottom:1px solid #8a6a2a;margin-bottom:6px}
+  #misTel.on{opacity:1;pointer-events:auto;cursor:pointer}
+  #misTel b{display:block;font-family:Georgia,serif;letter-spacing:.2em;font-size:12px;border-bottom:1px solid #8a6a2a;margin-bottom:6px;padding-right:22px}
+  #misTel .x{position:absolute;top:6px;right:8px;width:24px;height:24px;border:0;border-radius:4px;background:none;color:#5a3a12;font:18px/1 Georgia,serif;cursor:pointer}
+  #misTel .x:hover{background:rgba(90,58,18,.15)}
+  #misTel .foot{margin-top:9px;padding-top:6px;border-top:1px dashed #8a6a2a;font:12px Georgia,serif;color:#6b4a22;text-align:right}
+  #misTel kbd{background:#5a3f12;color:#f4e9cd;border-radius:4px;padding:0 6px;font:11px Georgia,serif}
   @media(max-width:620px){#misHint{bottom:210px}#dlg{bottom:12px}}`;
   document.head.appendChild(css);
   const mk=(tag,id,html)=>{const e=document.createElement(tag);e.id=id;if(html)e.innerHTML=html;document.body.appendChild(e);return e;};
@@ -5437,12 +5445,13 @@ const MISSAO=(function(){
   const bcT=tex(8,128,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'rgba(255,215,120,0)');gr.addColorStop(0.7,'rgba(255,215,120,.55)');
     gr.addColorStop(1,'rgba(255,230,160,.9)');g.fillStyle=gr;g.fillRect(0,0,w,h);});bcT.wrapS=bcT.wrapT=THREE.ClampToEdgeWrapping;
   const bcM=new THREE.MeshBasicMaterial({map:bcT,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});bcM.userData._lin=1;
-  const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,160,12,1,true),bcM);beam.userData.noMerge=1;beam.renderOrder=5;scene.add(beam);
+  const beamG=new THREE.CylinderGeometry(1.1,1.1,1,12,1,true);beamG.translate(0,0.5,0);       // altura unitária: a escala y põe a coluna no tamanho certo
+  const beam=new THREE.Mesh(beamG,bcM);beam.userData.noMerge=1;beam.renderOrder=5;scene.add(beam);
   const dia=new THREE.Mesh(new THREE.OctahedronGeometry(0.28,0),SM({color:'#ffd66b',emissive:'#ffb020',emissiveIntensity:1.6,roughness:.3,metalness:.4}));
   dia.scale.y=1.5;dia.userData.noMerge=1;scene.add(dia);
   const mark={x:0,z:0,n:'Missão',ic:'★'};WORLD.marks.push(mark);
   // ---------- estado ----------
-  const ST={pkg:'chapin',flown:false,air:false,dist:0,tAir:0,land:null,wreck:false,intro:false,done:false,msgLand:false,t:0,lastB:null,maxH:0};
+  const ST={pkg:'chapin',flown:false,air:false,dist:0,tAir:0,land:null,wreck:false,intro:false,done:false,msgLand:false,t:0,lastB:null,maxH:0,touch:false,touchAir:0};
   const inRio=p=>p.z<-1050&&p.x>-700&&p.x<720;
   const L=PRIO.landing;
   function target(){if(ST.pkg==='chapin')return {x:chapin.x,z:chapin.z,y:terrainY(chapin.x,chapin.z)+2.4,n:'Albert Chapin',who:'chapin'};
@@ -5456,7 +5465,7 @@ const MISSAO=(function(){
     if(ST.pkg==='virginia')return 'Missão cumprida! A primeira encomenda aérea chegou às mãos de Virgínia. (Para voar de novo, fale com o Chapin.)';
     if(ST.pkg==='sd'&&!ST.flown)return inRio(player.pos)?'Assim não vale! A encomenda tem de chegar pelo céu: volte ao 14-bis, no Campo de Bagatelle.':'Leve o pacote até o 14-bis e embarque ('+f+'). Ele vai amarrado no cesto.';
     if(ST.pkg==='plane'&&!ST.flown)return PLT.wreck?'O 14-bis quebrou — o pacote está a salvo no cesto. Aperte '+key('resetPlane')+' para voltar ao Campo e tentar de novo.':
-      'Voe para o SUL até a Pequena Rio de Janeiro e pouse na areia de Copacabana, entre as fogueiras.';
+      'Voe para o SUL até a Pequena Rio de Janeiro e pouse na areia de Copacabana, entre as fogueiras — até o 14-bis parar.';
     if(ST.pkg==='plane')return 'Pousou na Pequena Rio! Desembarque ('+f+') e leve o pacote até Virgínia, no coreto.';
     return 'Leve o pacote até Virgínia, no coreto da Avenida Atlântica.';}
   // ---------- onde fica o pacote ----------
@@ -5470,7 +5479,7 @@ const MISSAO=(function(){
   putPkg('chapin');
   // ---------- diálogos ----------
   const ACT={};let D=null;                                     // D = diálogo aberto {lines,i,shown,npc}
-  function openDlg(lines,npcKey){D={lines,i:-1,shown:0,npcKey,cam:null};dlg.style.display='block';hint.style.opacity=0;clearKeys();
+  function openDlg(lines,npcKey){closeTel();D={lines,i:-1,shown:0,npcKey,cam:null};dlg.style.display='block';hint.style.opacity=0;clearKeys();
     if(document.pointerLockElement)document.exitPointerLock();next();}
   function next(){if(!D)return;const cur=D.lines[D.i];
     if(cur&&D.shown<cur.t.length){D.shown=cur.t.length;return;}           // primeiro toque completa o texto
@@ -5511,7 +5520,7 @@ const MISSAO=(function(){
     {w:VI,t:'Papai não viveu para ver. Mas eu me lembro do que ele te disse quando te mandou para Paris: "não se esqueça de que o futuro do mundo está na mecânica". Ele tinha razão, Alberto.'},
     {w:VI,t:'E você ainda usa no pulso a medalha de São Bento que a Princesa Isabel te mandou, "que protege contra acidentes"...'},
     {w:SD,t:'Nunca a tirei, Virgínia. Nem hoje, atravessando a serra com o seu pacote amarrado no cesto.'},
-    {w:VI,t:'Em 1903, quando você desembarcou aqui no Rio, o povo te aclamou nas ruas — mas teve quem reclamasse que você não tinha trazido o seu invento. Pois hoje ele veio. E voando!'},
+    {w:VI,t:'Em 1903, quando você desembarcou aqui no Rio, o povo te aclamou nas ruas — mas teve quem reclamasse que você não tinha trazido os seus dirigíveis. Pois hoje veio o aeroplano — e voando!'},
     {w:SD,t:'Hoje o 14-bis levou uma encomenda de uma cidade a outra. Um dia os aeroplanos vão cruzar oceanos com cartas, remédios e gente. Por isso não vou patentear o aeroplano: o céu tem de ser de todos.'},
     {w:VI,t:'E todos eles vão seguir a rota que você abriu hoje. Obrigada, irmãozinho. Este livro e esta seda eu vou guardar para sempre.'}];
   function talkTo(k){
@@ -5524,15 +5533,22 @@ const MISSAO=(function(){
       else if(ST.pkg==='virginia')openDlg([{w:VI,t:'Vou ler de novo a dedicatória no vapor para Santos, Alberto. Vá — o céu está esperando por você.'}],'virg');
       else openDlg(L_VIRG_ANTES,'virg');}}
   // ---------- teclado: listener de CAPTURA (antes dos controles): só age com diálogo aberto ou perto de alguém ----------
-  let nearK=null;
+  // o telegrama do começo fica até o jogador fechar; o objetivo só aparece no alto quando ele aperta [Tab] (e some sozinho)
+  let nearK=null,telOn=false,hudT=0,tabDown=false;
+  function closeTel(){if(!telOn)return;telOn=false;tel.classList.remove('on');}
   const blocked=()=>(typeof settingsOpen!=='undefined'&&settingsOpen)||(typeof bigOpen!=='undefined'&&bigOpen)||getComputedStyle($('help')).display!=='none';
   addEventListener('keydown',e=>{
     if(card.style.display==='flex'){if(['Escape','Enter','Space'].includes(e.code)||e.code===bindings.interact){e.preventDefault();e.stopImmediatePropagation();closeCard();}return;}
     if(D){e.preventDefault();e.stopImmediatePropagation();if(e.repeat)return;
       if(e.code==='Escape'){closeDlg(true);return;}if(e.code===bindings.interact||e.code==='Enter'||e.code==='Space')next();return;}
-    if(blocked()||e.repeat)return;
-    if(e.code===bindings.interact&&nearK&&!(window._PLT&&window._PLT.on)){e.preventDefault();e.stopImmediatePropagation();talkTo(nearK);}},true);
-  addEventListener('click',()=>{if(D)next();});
+    if(blocked())return;
+    if(e.code===bindings.mission){e.preventDefault();e.stopImmediatePropagation();closeTel();if(!e.repeat)hudT=5;tabDown=true;return;}
+    if(e.repeat)return;
+    if(e.code===bindings.interact&&nearK&&!(window._PLT&&window._PLT.on)){e.preventDefault();e.stopImmediatePropagation();talkTo(nearK);}
+    else if(telOn&&(e.code==='Enter'||e.code==='Escape'||e.code===bindings.interact)){e.preventDefault();e.stopImmediatePropagation();closeTel();}},true);
+  addEventListener('keyup',e=>{if(e.code===bindings.mission)tabDown=false;});
+  addEventListener('blur',()=>{tabDown=false;});
+  addEventListener('click',()=>{if(D)next();else closeTel();});
   // ---------- jornal do fim, telegrama do começo, fogos e fanfarra ----------
   function closeCard(){card.style.display='none';}
   function finish(){ST.done=true;feita=true;try{localStorage.setItem(LS,'feita');}catch(e){}
@@ -5550,7 +5566,7 @@ const MISSAO=(function(){
       <li><b>Verdade:</b> a irmã Virgínia ensinou Alberto a ler; Júlio Verne era seu autor favorito; aos 7 anos ele guiava as locomóveis da fazenda e aos 12 as locomotivas Baldwin; a brincadeira do "Homem voa?" está no livro dele, "Dans l’air" (1904).</li>
       <li><b>Verdade:</b> "não se esqueça de que o futuro do mundo está na mecânica" — conselho do pai, Henrique Dumont, contado em "O que eu vi, o que nós veremos" (1918).</li>
       <li><b>Verdade:</b> em 1901 a Princesa Isabel lhe mandou uma medalha de São Bento, que ele usou no pulso para sempre; no mesmo ano o governo lhe deu uma medalha de ouro com a frase "Por céus nunca dantes navegados".</li>
-      <li><b>Verdade:</b> em 7/9/1903 ele chegou ao Rio, foi recebido pelo presidente Rodrigues Alves — e ouviu críticas por não ter trazido o invento. Ele nunca patenteou o aeroplano.</li>
+      <li><b>Verdade:</b> em 7/9/1903 ele chegou ao Rio e foi recebido pelo presidente Rodrigues Alves — e ouviu críticas por não ter trazido seus dirigíveis para uma demonstração. Anos depois, também não patenteou o aeroplano.</li>
       <li><b>Verdade:</b> a Avenida Central, o Obelisco e a Avenida Beira-Mar são de 1905–1906; o Theatro Municipal estava em obras e abriu em 1909.</li>
       <li><b>Licença poética:</b> a entrega, a dedicatória e o encontro em Copacabana são ficção deste jogo — o 14-bis voou em Paris. O Cristo Redentor só foi inaugurado em 1931, e o bondinho do Pão de Açúcar, em 1912.</li>
       <li><b>Curiosidade:</b> o primeiro correio aéreo oficial do mundo voou em 18/02/1911, na Índia, com o francês Henri Pequet.</li></ul></details>
@@ -5598,8 +5614,9 @@ const MISSAO=(function(){
   WORLD.tick.push((dt,t)=>{ST.t+=dt;const P=window._PLT,pil=!!(P&&P.on);
     // o telegrama do Chapin aparece quando a aventura começa
     if(!ST.intro&&getComputedStyle(helpEl).display==='none'&&!QS.has('shot')&&!QS.has('cam')){ST.intro=true;
-      tel.innerHTML='<b>TELEGRAMMA · PETRÓPOLIS · NOVEMBRO DE 1906</b>AO SNR SANTOS DUMONT PT ENCOMENDA PARA SUA IRMÃ VIRGÍNIA PRONTA PT ELLA ESPERA NA PEQUENA RIO DE JANEIRO PT VENHA À TENDA DO CAMPO DE BAGATELLE PT CHAPIN';
-      tel.style.opacity=1;setTimeout(()=>{tel.style.opacity=0;},9000);}
+      tel.innerHTML='<button type="button" class="x" aria-label="Fechar o telegrama">✕</button><b>TELEGRAMMA · PETRÓPOLIS · NOVEMBRO DE 1906</b>AO SNR SANTOS DUMONT PT ENCOMENDA PARA SUA IRMÃ VIRGÍNIA PRONTA PT ELLA ESPERA NA PEQUENA RIO DE JANEIRO PT VENHA À TENDA DO CAMPO DE BAGATELLE PT CHAPIN'+
+        '<div class="foot"><kbd>Enter</kbd> ou clique para fechar · <kbd>'+key('mission')+'</kbd> mostra a missão a qualquer momento</div>';
+      tel.classList.add('on');telOn=true;}
     // o pacote acompanha o dono: mão do SD, cesto do avião
     if(ST.pkg==='sd'&&pil)putPkg('plane');else if(ST.pkg==='plane'&&!pil)putPkg('sd');
     if(ST.pkg==='sd'&&pkgSD.parent)pkgSD.visible=avatar.visible;
@@ -5608,6 +5625,12 @@ const MISSAO=(function(){
         ST.maxH=Math.max(ST.maxH,b.y-planeGround(b.x,b.z));}
       if(ST.air&&!P.air&&!P.wreck&&P.spd<4&&inRio(b)&&!ST.flown){ST.flown=true;
         msg14('🏖 Pouso na Pequena Rio de Janeiro!','A primeira encomenda aérea da história chegou inteira. Desembarque ('+key('board')+') e leve o pacote até Virgínia, no coreto da Avenida Atlântica.',9);ding();}
+      // arremetida: as rodas tocaram a areia da Pequena Rio (o 14-bis comemora o "voo" com a mensagem de 🏆), mas ele voltou
+      // a voar — a entrega só vale com o avião parado; explica isso para ninguém achar que já cumpriu
+      if(!P.wreck&&ST.air&&!ST.flown&&inRio(b)){if(!P.air){ST.touch=true;ST.touchAir=0;}
+        else if(ST.touch&&(ST.touchAir+=dt)>1.5){ST.touch=false;
+          msg14('Quase!','O 14-bis tocou a areia, mas subiu de novo. Para entregar a encomenda ele tem de parar na praia: reduza o gás ('+key('back')+') e deixe rodar até parar.',8);}}
+      if(P.wreck)ST.touch=false;
       if(P.wreck&&!ST.wreck){ST.wreck=true;ST.air=false;ST.dist=0;ST.tAir=0;ST.maxH=0;   /* nova tentativa: zera o placar */ setTimeout(()=>msg14('📦 O pacote está a salvo','O Chapin embrulhou bem: a encomenda continua amarrada no cesto. Aperte '+key('resetPlane')+' para voltar ao Campo de Bagatelle e tentar de novo.',8),2600);}
       if(!P.wreck)ST.wreck=false;}
     // quem está perto para conversar?
@@ -5620,10 +5643,12 @@ const MISSAO=(function(){
     // marcador
     const tg=target();beam.visible=dia.visible=!!tg&&!D;mark.ic=tg?'★':'';mark.n=tg?tg.n:'';
     if(tg){mark.x=tg.x;mark.z=tg.z;const cp=camera.position,dc=Math.hypot(cp.x-tg.x,cp.z-tg.z);
-      beam.position.set(tg.x,terrainY(tg.x,tg.z)+80,tg.z);beam.visible=dc>35&&tg.who!=='plane'||dc>60;beam.scale.set(1+dc/400,1,1+dc/400);
+      // coluna baixa quando o alvo está perto (~15 m), mais alta só de longe, para achar o rumo em voo
+      beam.position.set(tg.x,terrainY(tg.x,tg.z),tg.z);beam.visible=dc>35&&tg.who!=='plane'||dc>60;beam.scale.set(1+dc/400,Math.min(90,12+dc*0.06),1+dc/400);
       bcM.opacity=Math.min(1,0.35+dc/500);dia.position.set(tg.x,tg.y+0.25*Math.sin(t*2.2)+(tg.who==='beach'?6:0),tg.z);dia.rotation.y=t*1.6;dia.visible=dc<220&&!D;}
     // HUD do objetivo
-    const show=getComputedStyle(helpEl).display==='none'&&!QS.has('shot')&&!QS.has('cam')&&!D&&card.style.display!=='flex';
+    if(!tabDown&&hudT>0)hudT-=dt;
+    const show=(tabDown||hudT>0)&&getComputedStyle(helpEl).display==='none'&&!QS.has('shot')&&!QS.has('cam')&&!D&&card.style.display!=='flex';
     if(show){$('misObj').textContent=objective();let di='';
       if(tg){const f=focusPos(),dx=tg.x-f.x,dz=tg.z-f.z,dd=Math.hypot(dx,dz),fd=focusDir(),ang=Math.atan2(dx*fd[1]-dz*fd[0],dx*fd[0]+dz*fd[1]);
         const ar=['⬆','⬈','➡','⬊','⬇','⬋','⬅','⬉'][((Math.round(-ang/(PI/4))%8)+8)%8];
