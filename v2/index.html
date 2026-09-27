@@ -2771,6 +2771,9 @@ const POVO=(function(){
   const T=(g,x,y,z,rx,ry,rz,sx,sy,sz)=>{if(sx)g.scale(sx,sy,sz);if(rx)g.rotateX(rx);if(ry)g.rotateY(ry);if(rz)g.rotateZ(rz);g.translate(x||0,y||0,z||0);return g;};
   const lathe=(pts,seg)=>new THREE.LatheGeometry(pts.map(p=>new THREE.Vector2(p[0],p[1])),seg||10);
   const SHOE=[0.16,0.13,0.11];
+  // olhos na cabeça de 8 gomos: o gomo da frente é chanfrado, então cada olho gira para fora (ry) e um pouco para cima (rx)
+  const EYE={x:0.0347,y:0.19,z:-0.0818,rx:0.2,ry:0.44},LIDH=0.0108;
+  const eyeAt=(g,s,dy)=>T(g,s*EYE.x,-(dy||0),EYE.z,EYE.rx,-s*EYE.ry,0);
   const GEO={
     leg:merge([[T(new THREE.CylinderGeometry(0.066,0.054,0.8,7,1,true),0,-0.4,0)],
                [T(new THREE.BoxGeometry(0.09,0.06,0.21),0,-0.83,-0.04),SHOE]]),
@@ -2798,6 +2801,11 @@ const POVO=(function(){
     band:T(new THREE.CylinderGeometry(1,1,1,9,1,true),0,0.5,0),
     parasol:merge([[T(new THREE.CylinderGeometry(0.008,0.008,1.0,4),0,0.05,0),[0.25,0.2,0.15]],
                    [T(new THREE.ConeGeometry(0.46,0.16,10,1,true),0,0.62,0)],[T(new THREE.SphereGeometry(0.018,5,4),0,0.71,0),[0.8,0.7,0.5]]]),
+    // olhos: lente branca + íris escura, virados para fora como os gomos da cara (pivô na altura dos olhos, EYE.y)
+    eyes:merge([-1,1].flatMap(s=>[[eyeAt(T(new THREE.SphereGeometry(0.0125,10,6),0,0,0,0,0,0,1.1,0.72,0.45),s),[0.78,0.74,0.68]],
+                                  [eyeAt(T(new THREE.SphereGeometry(0.007,8,5),0,0,-0.0045,0,0,0,1,1,0.45),s),[0.05,0.032,0.02]]])),
+    // pálpebras da cor da pele, com o topo no pivô: no piscar a escala y vai de 0 a 1 e elas descem sobre os olhos
+    lids:merge([-1,1].map(s=>[eyeAt(T(new THREE.SphereGeometry(0.0138,10,6),0,0,0.0005,0,0,0,1.12,0.78,0.7),s,LIDH)])),
   };
   // ---------- malhas instanciadas ----------
   const IM={},mats={};
@@ -2808,6 +2816,7 @@ const POVO=(function(){
   ['leg','skirt','torso','shirt','arm','hand','head','hairM','hairW','must','crownDome','crownCyl','brim','band'].forEach(k=>mk(k,GEO[k],k==='shirt'?{roughness:.6}:null));
   mk('parasol',GEO.parasol,{side:THREE.DoubleSide,roughness:.7});
   mk('thigh',GEO.thigh,null,MAXP*2);mk('shin',GEO.shin,null,MAXP*2);                                      // duas por pessoa
+  mk('eyes',GEO.eyes,{roughness:.3});mk('lids',GEO.lids);IM.eyes.castShadow=IM.lids.castShadow=false;   // pequenos demais para sombra
   // ---------- guarda-roupa ----------
   const lin=h=>new THREE.Color(h).convertSRGBToLinear();
   const DARK=[0x1f1d1c,0x26252a,0x2c2a26,0x33302b,0x2a2f3a,0x3a3129,0x44403a,0x252a33],LIGHT=[0xd9d2c0,0xcfc6b0,0xe4ddcc,0xbfb6a0];
@@ -2855,7 +2864,11 @@ const POVO=(function(){
   const LT=0.42,LS=0.44;
   function leg2(par,x,y,a,kn,lz,col){local(par,x,y,0,a,0,lz,1,1,1,mA);put('thigh',mA,col);local(mA,0,-LT,0,kn,0,0,1,1,1,mX2);put('shin',mX2,col);}
   const WHITE=new THREE.Color(1,1,1),SHIRTC=new THREE.Color(0.93,0.92,0.88),tgt=new THREE.Vector3();
-  function pose(p,t){const o=p.out,k=o.kind,H=o.h/1.68,st=p.state,walk=(st==='walk'||st==='rush'||st==='return')?1:0,ph=p.ph,sw=Math.sin(ph),cw=Math.cos(ph);
+  // piscar, como o Santos Dumont: a cada 2–6,5 s (às vezes duas seguidas) — fecha em 70 ms, fica 30 ms, abre em 100 ms (0 aberto … 1 fechado)
+  function blink(o,t){if(o.nb==null)o.nb=t+Math.random()*4;const u=t-o.nb;if(u<0)return 0;
+    if(u>0.2){o.nb=t+(Math.random()<0.15?0.22:2+Math.random()*4.5);return 0;}
+    return u<0.07?u/0.07:u<0.1?1:1-(u-0.1)/0.1;}
+  function pose(p,t,d2){const o=p.out,k=o.kind,H=o.h/1.68,st=p.state,walk=(st==='walk'||st==='rush'||st==='return')?1:0,ph=p.ph,sw=Math.sin(ph),cw=Math.cos(ph);
     const cheer=st==='cheer',jump=cheer&&p.jump?Math.max(0,Math.sin(t*5.5+p.seed))*0.26:0,hatHand=cheer&&o.hat&&k!=='w'&&!o.hat.cap&&p.seed%2<1;
     const sit=st==='sit'||st==='ride',ride=st==='ride';
     const idleA=1-walk,br=Math.sin(t*1.6+p.seed)*0.012,shift=Math.sin(t*0.37+p.seed)*idleA,hipH=k==='w'?0.9:0.86;
@@ -2869,6 +2882,8 @@ const POVO=(function(){
     const nod=p.gest>0?Math.sin(t*9+p.seed)*0.06:0;
     local(mT,0,0.575,0,-0.04+nod+(p.tilt||0),p.look,0,1,1,1,mH);
     put('head',mH,o.sk);
+    if(d2<3600){local(mH,0,EYE.y,0,0,0,0,1,1,1,mA);put('eyes',mA,WHITE);            // olhos só até 60 m (depois somem num pixel)
+      const c=blink(p,t);if(c>0.02){local(mH,0,EYE.y+LIDH,0,0,0,0,1,c,1,mA);put('lids',mA,o.sk);}}
     if(k==='w')put('hairW',mH,o.hair);else put('hairM',mH,o.hair);
     if(o.must&&k!=='w'&&k!=='c')put('must',mH,o.hair);
     if(o.hat&&!hatHand){const h=o.hat,y0=h.cap?0.235:0.25;
@@ -2914,15 +2929,23 @@ const POVO=(function(){
       if(!p.home)p.home={x:p.x,y:p.y,z:p.z,yaw:p.yaw,state:p.state==='idle'?'idle':'watch'};
       p.state='rush';p.slotA=Math.random()*6.283;p.slotR=Math.random()*3.2;p.vr=3.2+Math.random()*1.8;p.jump=Math.random()<0.65;p.talk=false;n++;}
     return n;}
+  // ninguém entra na água (mar da Pequena Rio, lago, rios): se ele foi nadar, quem corria atrás para na beira e comemora dali
+  const wet=(x,z)=>{if(typeof water14!=='function')return false;const lv=water14(x,z);return lv!==null&&lv>terrainY(x,z)+0.02;};
+  function stepDry(p,ux,uz,k,slide){const inW=wet(p.x,p.z);                 // (quem já está molhado pode sair)
+    for(const a of slide?[0,0.7,-0.7,1.4,-1.4]:[0]){const c=Math.cos(a),s=Math.sin(a),vx=ux*c-uz*s,vz=ux*s+uz*c,nx=p.x+vx*k,nz=p.z+vz*k;
+      if(inW||!wet(nx,nz)){p.x=nx;p.z=nz;p.yaw=Math.atan2(-vx,-vz);return true;}}
+    return false;}
   function festaStep(p,dt,ft){
     if(p.state==='return'){const h=p.home,dx=h.x-p.x,dz=h.z-p.z,dd=Math.hypot(dx,dz);
-      if(dd<0.3){p.state=h.state;p.x=h.x;p.z=h.z;p.y=h.y;p.yaw=h.yaw;p.talk=h.state==='idle';p.home=null;return;}   // volta à altura de onde saiu (degrau, palanque)
-      const k=Math.min(dd,1.35*dt);p.x+=dx/dd*k;p.z+=dz/dd*k;p.yaw=Math.atan2(-dx,-dz);p.ph+=dt*1.35*4.1;
+      if(dd<0.3||p.stuck>3){p.state=h.state;p.x=h.x;p.z=h.z;p.y=h.y;p.yaw=h.yaw;p.talk=h.state==='idle';p.home=null;p.stuck=0;return;}   // volta à altura de onde saiu (degrau, palanque)
+      const k=Math.min(dd,1.35*dt);if(stepDry(p,dx/dd,dz/dd,k,true))p.ph+=dt*1.35*4.1;else p.stuck=(p.stuck||0)+dt;   // contorna a beira d'água
       p.y=terrainY(p.x,p.z);return;}
     if(!ft){p.state='return';return;}
     const R=ft.r+p.slotR,sx=ft.x+Math.sin(p.slotA)*R,sz=ft.z+Math.cos(p.slotA)*R,dx=sx-p.x,dz=sz-p.z,dd=Math.hypot(dx,dz);
-    if(p.state==='rush'){if(dd<0.5)p.state='cheer';else{const k=Math.min(dd,p.vr*dt);p.x+=dx/dd*k;p.z+=dz/dd*k;p.yaw=Math.atan2(-dx,-dz);p.ph+=dt*p.vr*3.3;}}
-    else{if(dd>2.5)p.state='rush';p.yaw=Math.atan2(-(ft.x-p.x),-(ft.z-p.z));p.look=0;p.tilt=-0.18;}
+    if(p.state==='rush'){if(dd<0.5)p.state='cheer';
+      else if(stepDry(p,dx/dd,dz/dd,Math.min(dd,p.vr*dt),false))p.ph+=dt*p.vr*3.3;
+      else p.state='cheer';}                                                  // chegou à beira d'água: fica ali
+    else{if(dd>2.5&&!wet(p.x+dx/dd*0.5,p.z+dz/dd*0.5))p.state='rush';p.yaw=Math.atan2(-(ft.x-p.x),-(ft.z-p.z));p.look=0;p.tilt=-0.18;}
     p.y=terrainY(p.x,p.z);}
   function update(dt,t){const cam=camera.position;
     for(const k in IM)cnt[k]=0;
@@ -2944,9 +2967,9 @@ const POVO=(function(){
         p.look+=((p.lookTo||0)-p.look)*Math.min(1,dt*1.5);}
       if(p.talk){p.gestT-=dt;if(p.gestT<=0){p.gest=1.4+Math.random()*1.5;p.gSide=Math.random()<0.5?-1:1;p.gestT=3+Math.random()*7;}}
       if(p.gest>0)p.gest-=dt;
-      pose(p,t);}
+      pose(p,t,d2);}
     for(const k in IM){const im=IM[k];im.count=cnt[k];im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}}
-  return {P,add,path,update,outfit,IM,rnd,festa:festaStart};
+  return {P,add,path,update,outfit,IM,rnd,festa:festaStart,blink};
 })();
 /* ---------- veículos de 1906: tílburis e caleches a cavalo, carroças de mula, bicicletas e (raros) automóveis ----------
    No Brasil de 1906 a mão era a ESQUERDA (a troca para a direita só veio em 1928). Cada veículo é UMA malha (carroceria +
@@ -2980,22 +3003,29 @@ const VEIC=(function(){
   const IW=inst((()=>{const K=kit();K.add(new THREE.TorusGeometry(1,0.034,5,24),DK,0,0,0,0,Math.PI/2,0);      // roda de raios, eixo x, raio 1
       for(let i=0;i<14;i++){const a=i/14*Math.PI*2;K.rod([0,0,0],[0,Math.cos(a)*0.97,Math.sin(a)*0.97],0.011,[1,1,1],4);}
       K.cyl(0.075,0.075,0.14,[1,1,1],0,0,0,0,0,Math.PI/2,8);return K.geo();})(),160);
-  const IL=inst((()=>{const K=kit();K.cyl(0.07,0.05,0.55,[1,1,1],0,-0.27,0);K.cyl(0.045,0.04,0.5,[1,1,1],0,-0.78,0);    // perna de cavalo
-      K.cyl(0.05,0.06,0.07,[0.15,0.13,0.12],0,-1.06,0);return K.geo();})(),120);
-  const IT=inst((()=>{const K=kit();K.cyl(0.05,0.1,0.75,[1,1,1],0,-0.35,0.06,0.25);return K.geo();})(),40);
+  const IT=inst((()=>{const K=kit();K.cyl(0.05,0.1,0.75,[1,1,1],0,-0.35,0.06,0.25);return K.geo();})(),64);
   const IC=inst((()=>{const K=kit();K.cyl(0.08,0.08,0.02,[0.6,0.6,0.6],0,0,0,0,0,Math.PI/2,12);K.rod([0.06,0,0],[0.06,-0.17,0],0.01,[0.45,0.45,0.45]);
       K.rod([-0.06,0,0],[-0.06,0.17,0],0.01,[0.45,0.45,0.45]);return K.geo();})(),40);
-  // ---------- cavalo (≈1,55 m na cernelha), frente para −z: o corpo entra na malha do veículo ----------
+  // guidão da bicicleta: garfo + avanço (cor do quadro) e guidão niquelado giram no eixo de direção (do cubo da frente ao alto do garfo)
+  const BHUB=new THREE.Vector3(0,0.35,-0.52),BAX=new THREE.Vector3(0,0.57,0.12).normalize();
+  const IBF=inst((()=>{const K=kit();K.rod([0,0.92,-0.4],[0,0.35,-0.52],0.016,[1,1,1]).rod([0,0.92,-0.4],[0,1.02,-0.44],0.014,[1,1,1]);return K.geo();})(),40);
+  const IBH=inst((()=>{const K=kit();K.rod([-0.25,1.02,-0.44],[0.25,1.02,-0.44],0.012,0x888888);
+      for(const sd of[-1,1])K.cyl(0.018,0.018,0.09,0x1a1410,sd*0.21,1.02,-0.44,0,0,Math.PI/2,6);return K.geo();})(),40);
+  // ---------- cavalo (≈1,55 m na cernelha), frente para −z. Peças instanciadas, medidas no "espaço do cavalo" (escala 1, centro do
+  // tronco em z=0); a mula é o mesmo cavalo em escala 0,88. Tronco, pescoço e cada segmento de perna têm matriz própria por quadro ----------
+  const HMAX=64,unitK=f=>{const K=kit();f(K);return K.geo();};
+  const IHB=inst(unitK(K=>K.sph(0.36,[1,1,1],0,1.25,0,0.95,1,1.95)),HMAX);                                      // tronco (pelagem)
+  const IHH=inst(unitK(K=>K.add(new THREE.TorusGeometry(0.24,0.06,6,14),0x3a2416,0,1.5,-0.62,-0.5,0,0).box(0.74,0.08,0.12,0x3a2416,0,1.3,-0.1)),HMAX);   // coelheira e selote
+  const IHN=inst(unitK(K=>K.rod([0,1.35,-0.55],[0,1.78,-0.95],0.16,[1,1,1],8).box(0.2,0.25,0.5,[1,1,1],0,1.78,-1.12,-0.95)),HMAX);   // pescoço e cabeça
+  const IHD=inst(unitK(K=>K.box(0.17,0.16,0.14,[1,1,1],0,1.58,-1.28,-0.95).sph(0.035,0x0a0808,0.1,1.86,-1.12,0.6,1,1,6).sph(0.035,0x0a0808,-0.1,1.86,-1.12,0.6,1,1,6)),HMAX);   // focinho e olhos
+  const IHM=inst(unitK(K=>K.rod([0,1.55,-0.42],[0,2.0,-0.88],0.055,[1,1,1],5)),HMAX);                           // crina (a mula não tem)
+  const IHE=inst(unitK(K=>K.cyl(0.02,0.035,1,[1,1,1],0,0,0,0,0,0,5)),HMAX*2);                                    // orelha unitária (a da mula é maior)
+  const IL1=inst(unitK(K=>K.cyl(0.12,0.055,0.72,[1,1,1],0,-0.36,0)),HMAX*4);                                    // braço / coxa (0,72)
+  const IL2=inst(unitK(K=>K.sph(0.05,[1,1,1],0,0,0,1,1,1,8).cyl(0.042,0.036,0.54,[1,1,1],0,-0.27,0)
+      .cyl(0.05,0.062,0.07,[0.15,0.13,0.12],0,-0.575,0)),HMAX*4);                                                 // joelho/jarrete, canela e casco (0,61)
   const COATS=[0x4a2e1c,0x6b3f22,0x2a1d15,0x8a5a36,0xb9b1a4,0x3a2a22,0x5e4a3a];
-  function horseBody(K,oz,coat,mule){const dark=mule?0x3a3430:0x1c1612,s=mule?0.88:1,Z=z=>oz+z*s;
-    K.sph(0.36*s,coat,0,1.25*s,Z(0),0.95,1,1.95);
-    K.rod([0,1.35*s,Z(-0.55)],[0,1.78*s,Z(-0.95)],0.16*s,coat,8);
-    K.box(0.2*s,0.25*s,0.5*s,coat,0,1.78*s,Z(-1.12),-0.95);K.box(0.17*s,0.16*s,0.14*s,dark,0,1.58*s,Z(-1.28),-0.95);
-    K.sph(0.035,0x0a0808,0.1*s,1.86*s,Z(-1.12),0.6,1,1,6).sph(0.035,0x0a0808,-0.1*s,1.86*s,Z(-1.12),0.6,1,1,6);
-    for(const e of[-1,1])K.cyl(0.02,0.035,(mule?0.22:0.13)*s,coat,e*0.07*s,2.0*s,Z(-0.98),0.35,0,e*0.25,5);
-    if(!mule)K.rod([0,1.55,Z(-0.42)],[0,2.0,Z(-0.88)],0.055,dark,5);
-    K.add(new THREE.TorusGeometry(0.24*s,0.06*s,6,14),0x3a2416,0,1.5*s,Z(-0.62),-0.5,0,0);K.box(0.74*s,0.08,0.12,0x3a2416,0,1.3*s,Z(-0.1));
-    return {oz,s,coat:new THREE.Color(coat).convertSRGBToLinear(),tail:new THREE.Color(dark).convertSRGBToLinear()};}
+  function horseBody(oz,coat,mule){const dark=mule?0x3a3430:0x1c1612;
+    return {oz,s:mule?0.88:1,mule:!!mule,ear:mule?0.22:0.13,coat:new THREE.Color(coat).convertSRGBToLinear(),tail:new THREE.Color(dark).convertSRGBToLinear()};}
   // ---------- tipos ----------
   const BODY=[0x1b1b1d,0x2a1d17,0x1d2a22,0x3a1e1e,0x22262e],WOOD=0x6b4a2e,IRON=0x2a2826,LEATHER=0x2b1d14,SPK=new THREE.Color(0x7a6040).convertSRGBToLinear();
   const pickC=a=>a[Math.floor(POVO.rnd()*a.length)];
@@ -3004,7 +3034,7 @@ const VEIC=(function(){
     K.add(new THREE.CylinderGeometry(0.55,0.55,1.02,12,1,true,0,Math.PI),0x151515,0,1.35,0.42,0,0,Math.PI/2);          // capota
     for(const sd of[-1,1]){K.rod([sd*0.36,0.95,-0.2],[sd*0.33,1.3,-2.3],0.025,WOOD);K.rod([sd*0.36,0.95,0.3],[sd*0.36,0.75,0.2],0.02,IRON);}
     K.box(0.45,0.03,0.25,WOOD,0,0.7,-0.35).rod([-0.62,0.72,0.2],[0.62,0.72,0.2],0.02,IRON);
-    const h=horseBody(K,-3.1,pickC(COATS));
+    const h=horseBody(-3.1,pickC(COATS));
     return {K,wheels:[[-0.62,0.72,0.2,0.72,SPK],[0.62,0.72,0.2,0.72,SPK]],horse:h,seats:[[-0.22,1.15,0.2,true],[0.24,1.15,0.2,false]],len:4.6,v:3.2+POVO.rnd()*0.8,kind:'tilburi'};}
   function caleche(){const K=kit(),c=pickC(BODY);
     K.box(1.15,0.45,1.9,c,0,1.0,0.3).box(1.12,0.08,0.7,0x4a1a1a,0,1.28,0.75).box(1.12,0.55,0.08,c,0,1.5,1.2);
@@ -3012,7 +3042,7 @@ const VEIC=(function(){
     K.add(new THREE.CylinderGeometry(0.58,0.58,1.14,12,1,true,0,Math.PI*0.6),0x151515,0,1.55,1.05,0,0,Math.PI/2);
     for(const sd of[-1,1])K.rod([sd*0.4,0.9,-0.8],[sd*0.36,1.3,-2.9],0.028,WOOD);
     K.cyl(0.07,0.09,0.2,0xd8b25c,0.55,1.55,-0.95,0,0,0,8).cyl(0.07,0.09,0.2,0xd8b25c,-0.55,1.55,-0.95,0,0,0,8);
-    const h=horseBody(K,-3.7,pickC(COATS));
+    const h=horseBody(-3.7,pickC(COATS));
     return {K,wheels:[[-0.66,0.55,-0.55,0.55,SPK],[0.66,0.55,-0.55,0.55,SPK],[-0.66,0.7,1.0,0.7,SPK],[0.66,0.7,1.0,0.7,SPK]],horse:h,
       seats:[[0,1.72,-0.72,true],[-0.25,1.3,0.75,false],[0.25,1.3,0.75,false]],len:5.6,v:3.0+POVO.rnd()*0.8,kind:'caleche'};}
   function carroca(){const K=kit();
@@ -3020,14 +3050,14 @@ const VEIC=(function(){
     for(let i=0;i<3;i++)K.cyl(0.2,0.2,0.5,0x7a5530,-0.3+i*0.3,1.15,0.6,0,0,0,10);                                    // barris
     K.sph(0.24,0xcfc0a0,0.1,1.08,-0.2,1.3,0.7,0.9,8).sph(0.22,0xbfae8a,-0.3,1.05,-0.25,1.2,0.7,0.9,8);                  // sacas de café
     for(const sd of[-1,1])K.rod([sd*0.35,0.85,-0.65],[sd*0.3,1.15,-2.4],0.03,WOOD);K.rod([-0.72,0.6,0.35],[0.72,0.6,0.35],0.03,IRON);
-    const h=horseBody(K,-3.0,0x5e5048,true);const wc=new THREE.Color(0x4a3624).convertSRGBToLinear();
+    const h=horseBody(-3.0,0x5e5048,true);const wc=new THREE.Color(0x4a3624).convertSRGBToLinear();
     return {K,wheels:[[-0.72,0.6,0.35,0.6,wc],[0.72,0.6,0.35,0.6,wc]],horse:h,seats:[[-0.35,0.95,-0.5,true]],len:4.2,v:1.6+POVO.rnd()*0.5,kind:'carroca'};}
   function bicicleta(){const K=kit(),c=pickC([0x1a1a1a,0x2a3a2a,0x3a1a1a]);
     K.rod([0,0.35,0.52],[0,0.95,0.12],0.016,c).rod([0,0.35,0.52],[0,0.38,0],0.016,c).rod([0,0.38,0],[0,0.95,0.12],0.016,c)
-     .rod([0,0.95,0.12],[0,0.92,-0.4],0.016,c).rod([0,0.38,0],[0,0.92,-0.4],0.016,c).rod([0,0.92,-0.4],[0,0.35,-0.52],0.016,c)
-     .rod([-0.25,1.02,-0.44],[0.25,1.02,-0.44],0.012,0x888888).rod([0,0.92,-0.4],[0,1.02,-0.44],0.014,c).box(0.12,0.04,0.22,LEATHER,0,0.98,0.12);
+     .rod([0,0.95,0.12],[0,0.92,-0.4],0.016,c).rod([0,0.38,0],[0,0.92,-0.4],0.016,c).box(0.12,0.04,0.22,LEATHER,0,0.98,0.12);   // (garfo e guidão: IBF/IBH)
     const sp=new THREE.Color(0x9a9a9a).convertSRGBToLinear();
-    return {K,wheels:[[0,0.35,-0.52,0.35,sp],[0,0.35,0.52,0.35,sp]],crank:[0,0.38,0],seats:[[0,1.0,0.12,'ride']],len:1.4,v:3.6+POVO.rnd()*1.4,kind:'bici'};}
+    return {K,wheels:[[0,0.35,-0.52,0.35,sp],[0,0.35,0.52,0.35,sp]],crank:[0,0.38,0],seats:[[0,1.0,0.12,'ride']],len:1.4,v:3.6+POVO.rnd()*1.4,kind:'bici',
+      fc:new THREE.Color(c).convertSRGBToLinear(),st:0};}
   function automovel(){const K=kit(),c=pickC([0x5a1818,0x1c3a24,0x1a1a22]);
     K.box(1.3,0.5,2.2,c,0,0.95,0.35).box(1.25,0.1,0.9,0x3a2418,0,1.23,0.85).box(1.25,0.6,0.1,0x3a2418,0,1.5,1.35)
      .box(1.25,0.45,0.08,0x3a2418,0,1.4,0.35).box(1.25,0.08,0.55,0x3a2418,0,1.23,0.05)
@@ -3068,8 +3098,92 @@ const VEIC=(function(){
   function park(maker,x,z,hd){const V=maker();V.free=true;V.x=x;V.z=z;V.hd=hd;V.v=0;V.y=terrainY(x,z)+(OCC.get(x,z)===2?0.13:0);V.pitch=0;
     V.ph=0;V.spin=0;V.turn=0;V.steer=0;V.g=V.K.mesh();delete V.K;scene.add(V.g);V.riders=[];L.push(V);return V;}
   const mW=new THREE.Vector3(),mP=new THREE.Vector3(),mA=new THREE.Matrix4(),mB=new THREE.Matrix4(),WH=new THREE.Color(1,1,1),tmpF={},tmpB={};
-  const LEGS=[[-0.17,-0.55,0],[0.17,-0.55,Math.PI],[-0.17,0.58,Math.PI],[0.17,0.58,0]];     // trote: pares diagonais
-  function update(dt,t){const cam=camera.position;let nw=0,nl=0,nt=0,nc=0;
+  // ---------- andar do cavalo: enquanto apoia, o casco fica PRESO no chão (mundo); no balanço faz um arco até onde vai pisar — adiante
+  // do ombro/quadril, na direção em que ele está indo. Na curva as patas pisam de lado (as mãos cruzam) em vez de o cavalo escorregar.
+  // Passo (4 tempos) até ~2 m/s, trote (diagonais) até ~6 m/s, galope (3 tempos) acima; ré em diagonais. Pernas com 2 segmentos por
+  // IK: carpo dobra para a frente, jarrete para trás. O tronco vira na curva em volta da garupa (entre os varais), o pescoço vira mais
+  // um pouco, e o corpo sobe/desce, inclina para dentro da curva e acena a cabeça conforme a andadura. ----------
+  const HIPY=1.3,PV=0.62,PI2=Math.PI*2,DOWN=new THREE.Vector3(0,-1,0);
+  // mão E, mão D, pé E, pé D: x, z do ombro/quadril, braço/coxa, canela+casco, lado do joelho (−1 frente, +1 trás)
+  const HLEG=[[-0.17,-0.55,0.72,0.61,-1],[0.17,-0.55,0.72,0.61,-1],[-0.17,0.58,0.72,0.65,1],[0.17,0.58,0.72,0.65,1]];
+  const GAIT=[[0.75,0.25,0,0.5],[0,0.5,0.5,0],[0.7,0.5,0,0.74]];   // fase de cada pata: passo (pé E→mão E→pé D→mão D), trote, galope
+  const wrapA=a=>Math.atan2(Math.sin(a),Math.cos(a)),clampA=(a,m)=>a>m?m:a<-m?-m:a;
+  const hMb=new THREE.Matrix4(),hMi=new THREE.Matrix4(),hMp=new THREE.Matrix4(),hMn=new THREE.Matrix4(),hMt=new THREE.Matrix4(),hMo=new THREE.Matrix4(),
+    hQ=new THREE.Quaternion(),hEu=new THREE.Euler(),hSc=new THREE.Vector3(),hH=new THREE.Vector3(),hK=new THREE.Vector3(),hF=new THREE.Vector3(),
+    hD=new THREE.Vector3(),hU=new THREE.Vector3(),mS=new THREE.Matrix4(),_fk=new THREE.Vector3();
+  const pivotM=(M,px,py,pz)=>{hU.set(px,py,pz).applyMatrix4(M);return M.setPosition(px-hU.x,py-hU.y,pz-hU.z);};   // M (só rotação) → T(p)·M·T(−p)
+  const fork=(x,y,z,a)=>_fk.set(x,y,z).sub(BHUB).applyAxisAngle(BAX,a).add(BHUB);   // ponto do guidão virado de a (local da bicicleta)
+  function lift(F,T){F.air=1;F.u=0;F.T=T;F.lx=F.x;F.lz=F.z;}
+  let nMane=0;
+  function horse(V,h,Mw,dt,t,n){
+    const s=h.s,oz=h.oz,ch=Math.cos(V.hd),sh=Math.sin(V.hd),gx=V.g.position.x,gz=V.g.position.z,wb=-(oz+PV*s);   // wb: do eixo à garupa
+    if(!h.ft){h.ft=HLEG.map(()=>({x:0,z:0,y:0,air:0,u:0,T:0.3,lx:0,lz:0,cyc:-1,nx:0,nz:0,vx:0,vz:0}));
+      h.b=h.bn=h.dy=h.pit=h.nod=h.roll=0;h.gp=Math.random();h.gait=0;h.sd=Math.random()*6;h.last=-9;}
+    const v=V.v,wr=V.w,u=Math.hypot(v,wr*wb),mv=u>0.12,back=v<-0.05;
+    // rumo do tronco em relação à carroça: no RIDE vem das rédeas (V.steer, e já vira um pouco parado); no trânsito, da curva que ela faz
+    const bT=clampA(V.free?(V.steer||0)*(0.4+0.6*Math.min(1,Math.abs(v)/1.2)):Math.atan2(wr*wb,Math.max(Math.abs(v),0.6)),0.5),kb=Math.min(1,dt*5);
+    h.b+=(bT-h.b)*kb;h.bn+=(clampA(0.6*h.b+(V.free?0.3*(V.steer||0):0),0.45)-h.bn)*kb;
+    let G=h.gait;if(G===0&&u>2.1)G=1;else if(G===1&&u<1.8)G=0;else if(G===1&&u>6.2)G=2;else if(G===2&&u<5.8)G=1;if(back)G=0;h.gait=G;
+    const O=back?GAIT[1]:GAIT[G],D=back?0.6:G===0?0.62:G===1?Math.max(0.36,0.46-0.016*u):0.3,f=back||G===0?0.75+0.3*u:G===1?1.35+0.1*u:1.8+0.06*u;
+    if(mv)h.gp+=f*dt;
+    const cb=Math.cos(h.b),sb=Math.sin(h.b),reset=t-h.last>0.5;h.last=t;
+    let air=0;
+    for(let i=0;i<4;i++){const L=HLEG[i],F=h.ft[i];                        // neutro: sob o ombro/quadril (cavalo → carroça → mundo)
+      const x1=L[0]*cb+(L[1]-PV)*sb,z1=-L[0]*sb+(L[1]-PV)*cb+PV,cx=x1*s,cz=oz+z1*s,nx=gx+cx*ch+cz*sh,nz=gz-cx*sh+cz*ch;
+      if(!reset&&dt>0){const k=Math.min(1,dt*10);F.vx+=((nx-F.nx)/dt-F.vx)*k;F.vz+=((nz-F.nz)/dt-F.vz)*k;}
+      F.nx=nx;F.nz=nz;
+      if(reset||Math.hypot(F.x-nx,F.z-nz)>2.5*s){F.x=nx;F.z=nz;F.y=0;F.air=0;F.vx=F.vz=0;}   // estava longe (ou foi teletransportado)
+      if(F.air)air++;}
+    let best=-1,bd=0.14*s;
+    for(let i=0;i<4;i++){const F=h.ft[i];if(F.air)continue;const dd=Math.hypot(F.x-F.nx,F.z-F.nz);
+      if(mv){const ph=h.gp+O[i],cyc=Math.floor(ph),p=ph-cyc;
+        if(p>=D&&F.cyc!==cyc){lift(F,Math.max(0.12,(1-p)/f));F.cyc=cyc;}
+        else if(dd>0.78*s)lift(F,0.22);}                                         // esticou demais (curva fechada): passo já
+      else if(dd>bd){bd=dd;best=i;}}
+    if(best>=0&&!air)lift(h.ft[best],0.3);                                      // parado: acerta as patas, uma de cada vez
+    const ts=D/f*0.5,lh=Math.min(0.26,0.09+0.035*u)*s;
+    for(let i=0;i<4;i++){const F=h.ft[i];if(!F.air)continue;                   // pisa onde o ombro estará no meio do apoio
+      F.u=Math.min(1,F.u+dt/F.T);const r=(1-F.u)*F.T+ts,tx=F.nx+F.vx*r,tz=F.nz+F.vz*r;
+      if(F.u>=1){F.air=0;F.x=tx;F.z=tz;F.y=0;}
+      else{const k=F.u*F.u*(3-2*F.u);F.x=F.lx+(tx-F.lx)*k;F.z=F.lz+(tz-F.lz)*k;const sy=Math.sin(Math.PI*F.u);F.y=lh*(i<2?1:0.8)*sy*sy;}}
+    // corpo conforme a andadura
+    const amp=Math.min(1,u/0.8),g=h.gp,k=Math.min(1,dt*14);let dy,pit=0,nod;
+    if(G===0){dy=0.012*Math.cos(2*PI2*g);nod=0.07*Math.sin(2*PI2*g+0.8);}                 // passo: a cabeça acena a cada passada
+    else if(G===1){dy=-0.024*Math.cos(2*PI2*(g-D/2));nod=0.02*Math.sin(2*PI2*g);}          // trote: desce no apoio de cada diagonal
+    else{dy=0.035*Math.cos(PI2*(g-0.25));pit=0.05*Math.sin(PI2*g);nod=0.09*Math.sin(PI2*g+1);}   // galope: balanço de frente para trás
+    h.dy+=(dy*amp-Math.min(0.05,0.007*u)+0.004*Math.sin(t*1.6+h.sd)-h.dy)*k;   // (mais baixo quando corre)
+   h.pit+=(pit*amp-h.pit)*k;
+    h.nod+=(nod*amp-(1-amp)*(0.1+0.04*Math.sin(t*0.45+h.sd))-h.nod)*k;          // parado: cabeça mais baixa, mexendo devagar
+    h.roll+=(clampA(0.5*Math.atan(v*wr/9.8),0.1)-h.roll)*k;                     // inclina para dentro da curva
+    hMb.makeRotationY(h.b);pivotM(hMb,0,0,PV);                                  // giro em volta da garupa
+    hMt.makeRotationFromEuler(hEu.set(h.pit,0,h.roll,'XYZ'));pivotM(hMt,0,1.25,0);hMt.elements[13]+=h.dy;
+    hMb.multiply(hMt);hMi.copy(hMb).invert();
+    hMp.makeScale(s,s,s).setPosition(0,0,oz).premultiply(Mw).multiply(hMb);     // espaço do tronco → mundo
+    IHB.setMatrixAt(n,hMp);IHB.setColorAt(n,h.coat);IHH.setMatrixAt(n,hMp);IHH.setColorAt(n,WH);
+    hMt.makeRotationFromEuler(hEu.set(0.1+0.05*Math.sin(t*0.9),0,Math.sin(t*1.3+h.sd)*0.12,'XYZ')).setPosition(0,1.42,0.7);
+    IT.setMatrixAt(n,hMn.multiplyMatrices(hMp,hMt));IT.setColorAt(n,h.tail);
+    hMt.makeRotationFromEuler(hEu.set(h.nod,h.bn,0,'YXZ'));pivotM(hMt,0,1.35,-0.55);hMn.multiplyMatrices(hMp,hMt);   // pescoço
+    IHN.setMatrixAt(n,hMn);IHN.setColorAt(n,h.coat);IHD.setMatrixAt(n,hMn);IHD.setColorAt(n,h.tail);
+    if(!h.mule&&nMane<HMAX){IHM.setMatrixAt(nMane,hMn);IHM.setColorAt(nMane,h.tail);nMane++;}
+    for(let e=0;e<2;e++){const sd=e?1:-1;
+      hMt.makeRotationFromEuler(hEu.set(0.35+0.12*Math.sin(t*0.8+h.sd*3+e*1.7)*(1-amp*0.5),0,sd*0.25,'XYZ')).scale(hSc.set(1,h.ear,1)).setPosition(sd*0.07,2.0,-0.98);
+      IHE.setMatrixAt(n*2+e,hMo.multiplyMatrices(hMn,hMt));IHE.setColorAt(n*2+e,h.coat);}
+    for(let i=0;i<4;i++){const L=HLEG[i],F=h.ft[i],a=L[2],b=L[3];
+      const dx=F.x-gx,dz=F.z-gz;hF.set((dx*ch-dz*sh)/s,F.y/s,(dx*sh+dz*ch-oz)/s).applyMatrix4(hMi);   // casco: mundo → carroça → tronco
+      hH.set(L[0],HIPY,L[1]);hD.subVectors(hF,hH);let d=hD.length();
+      if(d<1e-4){hD.set(0,-1,0);d=1;}else hD.divideScalar(d);
+      // IK "macio": perto da perna esticada a distância usada tende a a+b sem chegar (o joelho não estala); o que falta para o casco
+      // tocar o chão vem de esticar a perna inteira, no máximo 10%
+      const Lt=a+b,ds=0.06*Lt,d0=Lt-ds;d=Math.max(Math.abs(a-b)+0.1,d);
+      const dq=d>d0?d0+ds*(1-Math.exp((d0-d)/ds)):d,ks=Math.min(1.1,d/dq);
+      const x=(a*a-b*b+dq*dq)/(2*dq),hk=Math.sqrt(Math.max(0,a*a-x*x));
+      hU.set(0,0,L[4]).addScaledVector(hD,-L[4]*hD.z);if(hU.lengthSq()<1e-6)hU.set(1,0,0);hU.normalize();
+      hK.copy(hH).addScaledVector(hD,x*ks).addScaledVector(hU,hk*ks);hF.copy(hH).addScaledVector(hD,dq*ks);
+      hSc.subVectors(hK,hH).normalize();hQ.setFromUnitVectors(DOWN,hSc);hMt.compose(hH,hQ,hSc.set(1,a*ks/0.72,1));
+      IL1.setMatrixAt(n*4+i,hMo.multiplyMatrices(hMp,hMt));IL1.setColorAt(n*4+i,h.coat);
+      hSc.subVectors(hF,hK);const lb=hSc.length();hSc.divideScalar(lb||1);hQ.setFromUnitVectors(DOWN,hSc);hMt.compose(hK,hQ,hSc.set(1,lb/0.61,1));
+      IL2.setMatrixAt(n*4+i,hMo.multiplyMatrices(hMp,hMt));IL2.setColorAt(n*4+i,h.coat);}}
+  function update(dt,t){const cam=camera.position;let nw=0,nh=0,nc=0,nb=0;nMane=0;
     for(const V of L){const g=V.g;
       if(V.free){tmp.x=V.x;tmp.y=V.y;tmp.z=V.z;g.position.set(V.x,V.y+0.02,V.z);g.rotation.set(V.pitch,V.hd,0,'YXZ');}   // livre: quem guia é o RIDE
       else{
@@ -3086,20 +3200,22 @@ const VEIC=(function(){
       if(srf){const o=V.dir*V.lane*k;yF=onPathXZ(V.pa,V.s+V.dir*h2,o,tmpF).y;yB=onPathXZ(V.pa,V.s-V.dir*h2,o,tmpB).y;yF=tmp.y+(yF-tmp.y)*k;yB=tmp.y+(yB-tmp.y)*k;}
       else{yF=terrainY(tmp.x-fx*h2,tmp.z-fz*h2);yB=terrainY(tmp.x+fx*h2,tmp.z+fz*h2);}
       g.rotation.set(Math.atan2(yF-yB,V.len)*(srf?1:0.9),V.hd,V.kind==='bici'?0:Math.atan(V.dir*tmp.g)*k,'YXZ');}   // inclina na ladeira (e no caimento da rua; a bicicleta fica em pé)
+      const wr=V.hd0===undefined||!(dt>0)?0:clampA(wrapA(V.hd-V.hd0)/dt,2.5);V.hd0=V.hd;V.w=(V.w||0)+(wr-(V.w||0))*Math.min(1,dt*6);   // velocidade de giro
       const far=(tmp.x-cam.x)**2+(tmp.z-cam.z)**2>300*300;g.visible=!far;
       V.riders.forEach(p=>{if(p)p.hidden=far;});
       if(far)continue;
-      V.ph+=dt*Math.abs(V.v)*(V.horse?2.6:1.2);V.spin-=V.v*dt;
+      V.ph+=dt*Math.abs(V.v)*1.2;V.spin-=V.v*dt;
       if(V.bob)g.position.y+=Math.sin(t*23)*0.006;
       g.updateMatrixWorld(true);const Mw=g.matrixWorld;
-      for(const w of V.wheels){mA.makeRotationX(V.spin/w[3]);mA.scale(mW.set(w[3],w[3],w[3]));mA.setPosition(w[0],w[1],w[2]);
+      // bicicleta: roda da frente e guidão viram no eixo de direção (no RIDE, o esterço do jogador; no trânsito, o da curva que ela faz)
+      if(V.fc)V.st=V.free?(V.steer||0):V.st+(clampA(Math.atan2(V.w*1.04,Math.max(Math.abs(V.v),0.8)),0.6)-V.st)*Math.min(1,dt*8);
+      for(const w of V.wheels){mA.makeRotationX(V.spin/w[3]);mA.scale(mW.set(w[3],w[3],w[3]));
+        if(V.fc&&w[2]<0&&V.st)mA.premultiply(mS.makeRotationAxis(BAX,V.st));
+        mA.setPosition(w[0],w[1],w[2]);
         IW.setMatrixAt(nw,mB.multiplyMatrices(Mw,mA));IW.setColorAt(nw,w[4]);nw++;}
-      if(V.horse){const h=V.horse,s=h.s;
-        const amp=V.free?Math.min(1,Math.abs(V.v)/1.2):1;                          // parado, o cavalo fica em pé (não congela no meio do trote)
-        for(const [x,z,d] of LEGS){mA.makeRotationX(Math.sin(V.ph+d)*0.42*amp);mA.scale(mW.set(s,s,s));mA.setPosition(x*s,1.1*s,h.oz+z*s);
-          IL.setMatrixAt(nl,mB.multiplyMatrices(Mw,mA));IL.setColorAt(nl,h.coat);nl++;}
-        mA.makeRotationFromEuler(new THREE.Euler(0.1+0.05*Math.sin(t*0.9),0,Math.sin(t*1.3+V.ph*0.1)*0.12));mA.scale(mW.set(s,s,s));mA.setPosition(0,1.42*s,h.oz+0.7*s);
-        IT.setMatrixAt(nt,mB.multiplyMatrices(Mw,mA));IT.setColorAt(nt,h.tail);nt++;}
+      if(V.fc&&nb<40){mA.makeRotationAxis(BAX,V.st);pivotM(mA,BHUB.x,BHUB.y,BHUB.z);mB.multiplyMatrices(Mw,mA);
+        IBF.setMatrixAt(nb,mB);IBF.setColorAt(nb,V.fc);IBH.setMatrixAt(nb,mB);IBH.setColorAt(nb,WH);nb++;}
+      if(V.horse&&nh<HMAX){horse(V,V.horse,Mw,dt,t,nh);nh++;}
       if(V.crank){mA.makeRotationX(V.spin/0.35*0.55);mA.setPosition(V.crank[0],V.crank[1],V.crank[2]);IC.setMatrixAt(nc,mB.multiplyMatrices(Mw,mA));IC.setColorAt(nc,WH);nc++;}
       V.riders.forEach((p,i)=>{if(!p)return;const st=V.seats[i];mW.set(st[0],st[1],st[2]).applyMatrix4(Mw);
         const H=p.out.h/1.68,hip=(p.out.kind==='w'?0.9:0.86)*H;p.x=mW.x;p.y=mW.y-hip;p.z=mW.z;p.yaw=V.hd;p.yawS=V.hd;
@@ -3107,8 +3223,9 @@ const VEIC=(function(){
           for(let j=0;j<2;j++){const sg=j?1:-1;                                    // j=0 pedal esquerdo, j=1 direito (mesma pedivela do IC)
             mP.set(V.crank[0]+sg*0.06,V.crank[1]-sg*0.17*ca+0.02,V.crank[2]-sg*0.17*sa).applyMatrix4(Mw).sub(mW);
             p.ped[j*2]=mP.y;p.ped[j*2+1]=mP.x*sy+mP.z*cy;}}});}                    // relativo ao quadril, no referencial do ciclista
-    for(const [im,n] of [[IW,nw],[IL,nl],[IT,nt],[IC,nc]]){im.count=n;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}}
-  return {L,add,park,update,tilburi,caleche,carroca,bicicleta,automovel};
+    for(const [im,n] of [[IW,nw],[IT,nh],[IC,nc],[IBF,nb],[IBH,nb],[IHB,nh],[IHH,nh],[IHN,nh],[IHD,nh],[IHM,nMane],[IHE,nh*2],[IL1,nh*4],[IL2,nh*4]]){
+      im.count=n;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}}
+  return {L,add,park,update,tilburi,caleche,carroca,bicicleta,automovel,fork};
 })();
 /* ---------- onde fica cada um: ruas do Centro, Rua do Encanto, União e Indústria e o público de Bagatelle ---------- */
 (function povoar(){
@@ -3209,6 +3326,27 @@ const PRIO=(function(){
   const WAVE=[];
   // ---------- montanhas de granito: torno (lathe) deformado, com mata na base e rocha nua em cima ----------
   const profR=(P,t)=>{for(let i=0;i<P.length-1;i++)if(t<=P[i+1][1])return P[i][0]+(P[i+1][0]-P[i][0])*(t-P[i][1])/Math.max(1e-6,P[i+1][1]-P[i][1]);return P[P.length-1][0];};
+  // cor do terreno num ponto (mesma triangulação da malha do chão)
+  const terCol=(x,z,out)=>{const i=TER.ix(x),j=TER.ix(z),gp=TER.gp,NV=TER.N+1,C=TER.CO;
+    let fx=(x-gp[i])/(gp[i+1]-gp[i]),fz=(z-gp[j])/(gp[j+1]-gp[j]);fx=fx<0?0:fx>1?1:fx;fz=fz<0?0:fz>1?1:fz;
+    const a=(j*NV+i)*3,b=a+3,c=a+NV*3,d=c+3;
+    for(let k=0;k<3;k++)out[k]=fx+fz<=1?C[a+k]+fx*(C[b+k]-C[a+k])+fz*(C[c+k]-C[a+k]):C[d+k]+(1-fx)*(C[c+k]-C[d+k])+(1-fz)*(C[b+k]-C[d+k]);
+    return out;};
+  // pedra com base que se funde ao terreno (atributo tb): sem textura de pedra e com o mesmo detalhe do chão onde tb→1
+  RM.rockB=RM.rock.clone();RM.rockB.userData.ownPatch=1;RM.rockB.polygonOffset=true;RM.rockB.polygonOffsetFactor=-1;RM.rockB.polygonOffsetUnits=-2;
+  RM.rockB.onBeforeCompile=function rockBlend(sh){worldPatch(sh);sh.uniforms.tDet={value:T.tDet};
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float tb;varying float vTb;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\n\tvTb = tb;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D tDet;varying float vTb;')
+      .replace('#include <map_fragment>',`#ifdef USE_MAP
+  vec4 texelColor = mapTexelToLinear( texture2D( map, vUv ) );
+  diffuseColor *= mix( texelColor, vec4( 1.0 ), vTb );
+#endif`)
+      .replace('#include <color_fragment>',`#include <color_fragment>
+  if(vTb>0.001){vec2 wp=vWPos.xz;float cd=length(vWPos-cameraPosition);
+    vec3 dN=texture2D(tDet,wp*0.40).rgb*2.0,dM=texture2D(tDet,wp*0.061+0.37).rgb*2.0,dF=texture2D(tDet,wp*0.0071+0.71).rgb*2.0;
+    vec3 det=mix(dN,vec3(1.0),smoothstep(35.0,150.0,cd))*mix(dM,vec3(1.0),smoothstep(500.0,1800.0,cd))*mix(vec3(1.0),dF,0.55);
+    diffuseColor.rgb*=mix(vec3(1.0),det,vTb);}`);};
   function rockMount(o){const pts=o.prof.map(p=>new THREE.Vector2(Math.max(0.02,p[0]*o.R),p[1]*o.H));
     const g=new THREE.LatheGeometry(pts,56),p=g.attributes.position,c=Math.cos(o.rot),s=Math.sin(o.rot);
     for(let i=0;i<p.count;i++){let px=p.getX(i),pz=p.getZ(i);const py=p.getY(i),t=Math.min(1,py/o.H),an=Math.atan2(pz,px);
@@ -3227,8 +3365,15 @@ const PRIO=(function(){
       v=Math.min(1,v*(0.7+0.6*(pn(x*0.06+o.seed,z*0.06-o.seed)*0.5+0.5)));
       const r=0.5+0.5*pn(x*0.025+t*2,z*0.025),gg=0.5+0.5*pn(x*0.08,z*0.08+3);
       for(let k=0;k<3;k++){const rock=K1[k]+(K2[k]-K1[k])*r,veg=G1[k]+(G2[k]-G1[k])*gg;col[i*3+k]=rock+(veg-rock)*v;}}
+    // blend: onde o morro encosta no terreno (a malha do chão é rala aqui, 8×28 m, e corta a encosta num serrilhado), a base toma a
+    // cor do próprio terreno e perde a textura de pedra aos poucos (tb 1 → 0 em o.blend metros acima do chão): a emenda some em vez de
+    // riscar verde-escuro contra o capim; o material empurra a encosta um tico para a frente (sem cintilar contra o chão)
+    if(o.blend){const tb=new Float32Array(p.count),tc=[0,0,0];
+      for(let i=0;i<p.count;i++){const wx=o.x+p.getX(i),wz=o.z+p.getZ(i),b=1-smooth((o.y0+p.getY(i)-ty(wx,wz))/o.blend);
+        tb[i]=b;if(b>0){terCol(wx,wz,tc);for(let k=0;k<3;k++)col[i*3+k]+=(tc[k]-col[i*3+k])*b;}}
+      g.setAttribute('tb',new THREE.BufferAttribute(tb,1));}
     g.setAttribute('color',new THREE.BufferAttribute(col,3));
-    const m=mesh(g,RM.rock,o.x,o.y0,o.z,0,true);m.userData.noMerge=1;
+    const m=mesh(g,o.blend?RM.rockB:RM.rock,o.x,o.y0,o.z,0,true);m.userData.noMerge=1;
     const N=8;for(let k=0;k<N;k++){const t0=k/N,t1=(k+1)/N,rr=o.R*profR(o.prof,(t0+t1)/2)*1.02;
       addColl(o.x+o.lean[0]*t0*t0*o.H,o.z+o.lean[1]*t0*t0*o.H,2*rr*o.sx,2*rr*o.sz,o.rot,o.y0+t0*o.H,o.y0+t1*o.H,o.name);}
     OCC.circ(o.x,o.z,o.R*Math.max(o.sx,o.sz)*0.85,5);
@@ -3273,7 +3418,7 @@ const PRIO=(function(){
   // perfil: encosta de mata côncava embaixo e, em cima, a "corcova" de granito — paredes íngremes que se arredondam num cume
   // largo (o terraço do mirante, 13 m, assenta inteiro na rocha), em vez de afinar numa agulha. O espigão (rumo a Santa Teresa)
   // sobe até perto do topo: de um lado a parede de pedra, do outro a crista que liga o morro ao maciço — como o de verdade
-  const corc=rockMount({x:cx0,z:cz0,y0:cy0-4,R:112,H:152,sx:0.9,sz:1.0,rot:-0.3,lean:[-0.13,0.04],seed:5.3,veg:0.55,ridge:0.1,tail:[0.25,1.0,0.9],drape:0.4,name:'o Corcovado',
+  const corc=rockMount({x:cx0,z:cz0,y0:cy0-4,R:112,H:152,sx:0.9,sz:1.0,rot:-0.3,lean:[-0.13,0.04],seed:5.3,veg:0.55,ridge:0.1,tail:[0.25,1.0,0.9],drape:0.4,blend:16,name:'o Corcovado',
     prof:[[1,0],[0.8,0.09],[0.64,0.18],[0.53,0.28],[0.46,0.38],[0.41,0.48],[0.375,0.58],[0.345,0.68],[0.31,0.77],[0.265,0.85],[0.21,0.915],[0.155,0.955],[0.12,0.982],[0.085,0.995],[0,1]]});
   const CT=corc.top;
   box(13,1.2,13,M.path,CT[0],CT[1]-0.3,CT[2],{walk:true,solid:false});                     // o terraço do mirante
@@ -5563,8 +5708,16 @@ const MISSAO=(function(){
     const Hd=new THREE.Group();Hd.position.y=0.09;N.add(Hd);
     const head=P(new THREE.SphereGeometry(0.105,18,14),skin,0,0.1,0,Hd);head.scale.set(0.86,1.1,0.97);
     P(new THREE.ConeGeometry(0.018,0.05,8),skin,0,0.09,-0.102,Hd).rotation.x=-PI/2;                    // nariz
+    const lids=[],eyeW=SM({color:'#ece6da',roughness:.3}),iris=SM({color:o.iris||'#5b3b24',roughness:.25}),pupil=SM({color:'#0b0806',roughness:.2});
     for(const sd of[-1,1]){P(new THREE.SphereGeometry(0.024,8,6),skin,sd*0.09,0.1,0.005,Hd).scale.set(0.45,1,0.8);             // orelhas
-      P(new THREE.SphereGeometry(0.013,8,6),M_('#1a120c'),sd*0.035,0.12,-0.088,Hd);                   // olhos
+      // olho: branco + íris + pupila, virado para fora como a face; a pálpebra (pele) desce de cima quando pisca
+      const E=new THREE.Group();E.position.set(sd*0.034,0.12,-0.0905);E.rotation.set(0.15,-sd*0.42,0);Hd.add(E);
+      P(new THREE.SphereGeometry(0.013,16,10),eyeW,0,0,0,E).scale.set(1.1,0.75,0.45);
+      P(new THREE.SphereGeometry(0.0068,14,8),iris,0,0,-0.0045,E).scale.set(1,1,0.45);
+      P(new THREE.SphereGeometry(0.0032,10,6),pupil,0,0,-0.007,E).scale.set(1,1,0.4);
+      const lid=new THREE.Group();lid.position.y=0.0108;lid.visible=false;E.add(lid);lids.push(lid);
+      P(new THREE.SphereGeometry(0.0138,16,10),skin,0,-0.0108,0.0005,lid).scale.set(1.12,0.78,0.7);
+      E.traverse(k=>{k.castShadow=false;});
       P(new THREE.BoxGeometry(0.036,0.008,0.01),hair,sd*0.036,0.145,-0.09,Hd).rotation.z=sd*-0.12;}   // sobrancelhas
     if(o.must){const m=P(new THREE.BoxGeometry(0.075,0.018,0.02),hair,0,0.066,-0.097,Hd);m.rotation.x=0.2;
       for(const sd of[-1,1])P(new THREE.BoxGeometry(0.03,0.014,0.016),hair,sd*0.045,0.058,-0.092,Hd).rotation.z=sd*0.5;}
@@ -5585,6 +5738,7 @@ const MISSAO=(function(){
         if(Math.abs(e)>0.6||st.talk>0)st.yaw+=e*Math.min(1,dt*2.2);let l=want-st.yaw;l=Math.atan2(Math.sin(l),Math.cos(l));st.look+=(Math.max(-0.9,Math.min(0.9,l))-st.look)*Math.min(1,dt*5);}
       else st.look+=(0.35*Math.sin(t*0.3)-st.look)*Math.min(1,dt*1.5);
       G.rotation.y=st.yaw;Hd.rotation.set(-0.04+(st.talk>0?0.04*Math.sin(t*7):0),st.look,0);
+      const bl=POVO.blink(st,t);for(const l of lids){l.visible=bl>0.02;l.scale.y=Math.max(0.02,bl);}
       T.scale.y=1+0.012*Math.sin(t*1.7);T.rotation.z=0.015*Math.sin(t*0.4);
       const L=arms[0],R=arms[1];L.S.rotation.set(0.05*Math.sin(t*0.9),0,0.08);L.E.rotation.x=0.12;
       let rs=0.05*Math.sin(t*0.9+1),re=0.15,rz=-0.08;
@@ -6013,7 +6167,8 @@ const RIDE=(function(){const PI=Math.PI;
     const A=(lx,ly,lz)=>[lx-sl[0],ly-rootY,sl[2]-lz,0];                  // local do veículo → espaço do avatar [x, y, frente, pitch]
     let feet,hands;
     if(V.kind==='bici'){const a=V.spin/0.35*0.55,ca=Math.cos(a),sa=Math.sin(a);   // pés na pedivela (a mesma conta do VEIC)
-      feet=[-1,1].map(sg=>A(sg*0.1,0.38-sg*0.17*ca+0.02+ay*0.9,-sg*0.17*sa+0.05));hands=[-1,1].map(sd=>toW(V,sd*0.22,1.05,-0.33));}
+      feet=[-1,1].map(sg=>A(sg*0.1,0.38-sg*0.17*ca+0.02+ay*0.9,-sg*0.17*sa+0.05));
+      hands=[-1,1].map(sd=>{const q=VEIC.fork(sd*0.22,1.05,-0.33,V.st||0);return toW(V,q.x,q.y,q.z);});}   // mãos acompanham o guidão virado
     else if(V.kind==='tilburi'){feet=[-1,1].map(sd=>A(sl[0]+sd*0.11,0.715+ay,-0.34));hands=[-1,1].map(sd=>toW(V,sl[0]+sd*0.13,1.45,-0.22));}   // pés no estribo, rédeas
     else{feet=[-1,1].map(sd=>A(sl[0]+sd*0.11,1.2+ay,-0.55));hands=[-1,1].map(sd=>toW(V,0.28+sd*0.15,1.5,-0.36));}                          // o piso é o alto da carroceria; volante
     let look=player.yaw-V.hd;look=Math.max(-1,Math.min(1,Math.atan2(Math.sin(look),Math.cos(look))));
@@ -6292,7 +6447,13 @@ function frameWorld(dt){const t=clock.elapsedTime,P=window._PLT,pil=!!(P&&P.on);
       carga_ms:Math.round(window._loadMs||0),etapas:_TM.join(' '),cidade:WORLD.dbgTown,pr:PR,webgl2:renderer.capabilities.isWebGL2});document.body.appendChild(d);}}
 function flySpeed(){const a=player.pos.y-terrainY(player.pos.x,player.pos.z);return Math.min(60,5.6*(1+Math.max(0,a-8)/14));}
 
+const COVER=document.getElementById('help');let coverWarm=0;
+function coverUp(){return !!COVER&&COVER.style.display!=='none'&&getComputedStyle(COVER).display!=='none';}
 function animate(){requestAnimationFrame(animate);
+  // capa de abertura: é uma foto opaca por cima do canvas. Depois de 60 quadros de aquecimento (shaders compilados,
+  // texturas na GPU, veículos assentados) o mundo não é simulado nem desenhado por trás dela — senão a GPU
+  // renderiza sombras, MSAA e bloom a 60 quadros/s para ninguém ver. ?dbg segue rodando para medir a cena.
+  if(coverUp()&&!QS.has('dbg')&&++coverWarm>60){clock.getDelta();lastFT=performance.now();return;}
   const dt=Math.min(clock.getDelta(),0.05);
   if(settingsOpen||bigOpen){frameWorld(0);return;}
   const sp=player.fly?flySpeed():(held('run')?6.2:1.8);             // andar 1,8 m/s (passo apressado de quem tem 1,52 m); correr = sprint
