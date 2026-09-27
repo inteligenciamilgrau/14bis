@@ -6,7 +6,7 @@ Cada peça é numerada para conferência durante a construção.
 > **STATUS: v2 — física real ✅** — integrada ao `v2.html` (seção
 > `14-BIS`, entre `/*FM14-BEGIN*/` e "luzes internas"). Modelo de voo de 6
 > graus de liberdade com as medidas publicadas do avião (seção 6), modelo 3D
-> refeito a partir das fotos de 1906 e 9 câmeras. As peças [1]–[47] estão
+> refeito a partir das fotos de 1906 e 9 câmeras. As peças [1]–[48] estão
 > marcadas por número nos comentários do código. Tecla `8` teleporta ao
 > Campo de Bagatelle; `F` junto ao cesto embarca.
 
@@ -149,6 +149,7 @@ volta à linha de largada.
 45. Poeira das rodas e do sopro da hélice, fumaça do escape, sombra
 46. **Desafios históricos**: Taça Archdeacon (25 m), 23/10 (60 m), Aeroclube (100 m), 12/11 (220 m) — medido da decolagem ao toque, como faziam os comissários
 47. Vento de oeste com rajadas e perfil logarítmico junto ao chão; ar padrão (densidade cai com a altitude)
+48. **Acidente com física** (`DMG14`): a batida quebra a peça atingida conforme o lugar e a força do impacto — seda rasgada, estais arrebentados, amassados, ponta da asa ou asa dobrada onde a longarina parte, fuselagem torta ou partida, canard esmagado, hélice partida (pás voando), trem deitado — e o resto continua na física até parar; peças soltas viram destroços; lascas e retalhos de seda voam; estalos no som. **R** reconstrói tudo
 
 ## 6. Modelo de voo (FM14)
 
@@ -171,6 +172,18 @@ volta à linha de largada.
   rolamento na grama e atrito lateral), na vara de proa e nas varas das asas;
   pontos "duros" (pontas das asas, hélice, canard, cesto, fuselagem) detectam
   batidas e arrasto.
+- **Acidente [48]**: o avião é montado em peças (`SEC14`: asa esquerda, asa
+  direita, fuselagem+canard, núcleo com cesto e motor, hélice, cada roda). Na
+  batida, a força é a velocidade do ponto contra o obstáculo (no chão, a normal
+  + 30% do raspão; galhos contam 60%, água 45%). Até ~3 m/s: seda rasgada e
+  amassado; até ~8,5 m/s: a longarina parte e a asa dobra ali (ou a fuselagem
+  entorta na junta com o cesto); acima disso, ou somando 17 m/s de batidas, a
+  peça se solta. A peça solta leva junto a sustentação, os pontos de contato e
+  parte da massa e das inércias — sem uma asa, a outra rola o avião e ele cai em
+  parafuso. Depois da batida o modelo de voo segue ligado (motor morto),
+  com ~40 pontos de contato a mais (quinas de cima, para capotar), paredes e
+  telhados das casas, galhos que freiam e água com empuxo fraco; cada nova
+  batida quebra mais. Para em repouso e fica ali até o **R**.
 
 ### Validação (testes automáticos no Chrome headless)
 

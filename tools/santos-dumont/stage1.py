@@ -1,6 +1,7 @@
 import sys; sys.path.insert(0,__import__("os").path.dirname(__import__("os").path.abspath(__file__)))
 from common import *
 import rh
+import fingers as FG
 body,eL,eR=load_base(1)
 V=verts(body); vs=vert_sets(body)
 LID=[np.array(sorted(vs[2])),np.array(sorted(vs[3]))]      # pálpebras (2: +x = olho esquerdo)
@@ -53,19 +54,44 @@ bones=[('hips','hips','spine',None),('spine','spine','chest','hips'),('chest','c
 for s in ('L','R'):
     bones+= [(f'upperarm.{s}',f'shoulder.{s}',f'elbow.{s}','chest'),(f'forearm.{s}',f'elbow.{s}',f'wrist.{s}',f'upperarm.{s}'),(f'hand.{s}',f'wrist.{s}',f'handtip.{s}',f'forearm.{s}'),
              (f'thigh.{s}',f'hip.{s}',f'knee.{s}','hips'),(f'shin.{s}',f'knee.{s}',f'ankle.{s}',f'thigh.{s}'),(f'foot.{s}',f'ankle.{s}',f'toe.{s}',f'shin.{s}')]
+# --- dedos: 3 falanges por dedo (o polegar começa no pulso), juntas tiradas dos face sets de cada falange ---
+CH=FG.chains(V,vs)
+for s in ('L','R'):
+    for f in FG.NAMES:
+        j=CH[(s,f)]['j']
+        for k in range(3): J[f'{f}{k+1}.{s}']=tuple(j[k])
+        J[f'{f}tip.{s}']=tuple(j[3])
+        bones+=[(f'{f}1.{s}',f'{f}1.{s}',f'{f}2.{s}',f'hand.{s}'),(f'{f}2.{s}',f'{f}2.{s}',f'{f}3.{s}',f'{f}1.{s}'),(f'{f}3.{s}',f'{f}3.{s}',f'{f}tip.{s}',f'{f}2.{s}')]
+FINGER=set(n for s in ('L','R') for n in FG.bone_names(s))
 ad=bpy.data.armatures.new('rig'); arm=bpy.data.objects.new('rig',ad); bpy.context.scene.collection.objects.link(arm)
 bpy.context.view_layer.objects.active=arm
 with ctx(arm): bpy.ops.object.mode_set(mode='EDIT')
 for n,h,t,p in bones:
     eb=ad.edit_bones.new(n); eb.head=J[h]; eb.tail=J[t]; eb.roll=0
     if p: eb.parent=ad.edit_bones[p]
-    eb.inherit_scale='NONE'
+    eb.inherit_scale='FULL' if n in FINGER else 'NONE'     # dedos acompanham a mão afinada
 with ctx(arm): bpy.ops.object.mode_set(mode='OBJECT')
 # pesos automáticos (calor)
 for o in bpy.context.view_layer.objects: o.select_set(False)
 body.select_set(True); arm.select_set(True); bpy.context.view_layer.objects.active=arm
 with bpy.context.temp_override(object=arm,active_object=arm,selected_objects=[body,arm],selected_editable_objects=[body,arm]):
     bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+# dedos: o calor decide só quanto é "mão" (contra o antebraço); a divisão palma/falanges vem da geometria de cada falange
+def vg_array(o,name):
+    g=o.vertex_groups.get(name); a=np.zeros(len(o.data.vertices))
+    if g is None: return a
+    gi=g.index
+    for v in o.data.vertices:
+        for e in v.groups:
+            if e.group==gi: a[v.index]=e.weight
+    return a
+WH={s:vg_array(body,'hand.'+s)+sum(vg_array(body,n) for n in FG.bone_names(s)) for s in ('L','R')}
+FW=FG.weights(V,vs,CH,WH)
+for n,a in FW.items():
+    g=body.vertex_groups.get(n) or body.vertex_groups.new(name=n)
+    g.remove(list(range(len(a))))
+    nz=np.where(a>1e-4)[0]
+    for i in nz: g.add([int(i)],float(a[i]),'REPLACE')
 print("vgroups",[g.name for g in body.vertex_groups])
 for e in (eL,eR):
     g=e.vertex_groups.new(name='head'); g.add(list(range(len(e.data.vertices))),1.0,'REPLACE')
@@ -95,6 +121,17 @@ for s,sg in (('L',1),('R',-1)):
 for s,sg in (('L',1),('R',-1)):
     pb=pbs[f'upperarm.{s}']; M=pb.matrix.copy(); M.translation.x-=sg*0.014; M.translation.z-=0.006; pb.matrix=M
     bpy.context.view_layer.update()
+# --- mãos relaxadas: os dedos dobram nos próprios ossos (eixo de flexão de cada dedo levado junto com a mão) ---
+FAX={}
+for s in ('L','R'):
+    pbh=pbs['hand.'+s]; Rh=(pbh.matrix.to_3x3()@ad.bones['hand.'+s].matrix_local.to_3x3().inverted())
+    for f in FG.NAMES:
+        ax=(Rh@Vector(CH[(s,f)]['ax'])).normalized(); pw=(Rh@Vector(CH[(s,f)]['pw'])).normalized()
+        for k in (1,2,3): FAX[f'{f}{k}.{s}']={'ax':tuple(ax),'pw':tuple(pw)}
+REST={'thumb':(0.05,0.12,0.12),'index':(0.12,0.22,0.12),'middle':(0.16,0.26,0.14),'ring':(0.2,0.3,0.16),'pinky':(0.24,0.34,0.18)}
+for s in ('L','R'):
+    for f in FG.NAMES:
+        for k in (1,2,3): FG.rot_about(pbs[f'{f}{k}.{s}'],FAX[f'{f}{k}.{s}']['ax'],REST[f][k-1])
 # juntas finais (espaço da armature)
 JP={}
 for pb in pbs: JP[pb.name]=(tuple(pb.head),tuple(pb.tail))
@@ -106,34 +143,13 @@ body.parent=None; body.matrix_world=Matrix.Identity(4)
 _V1=verts(body)
 for e,i,c0 in ((eL,LID[0],LID0[0]),(eR,LID[1],LID0[1])):   # olhos acompanham as pálpebras (escultura + pose)
     pe=verts(e); pe+=(_V1[i].mean(0)-c0)*np.array((1,1,1)); set_verts(e,pe)
-# --- mãos relaxadas: dedos curvados para a palma (dobra contínua a partir dos nós dos dedos) ---
-gi_={g.index:g.name for g in body.vertex_groups}
-for sd_,sg in (('L',1),('R',-1)):
-    gidx=body.vertex_groups['hand.'+sd_].index
-    wh=np.zeros(len(_V1))
-    for v in body.data.vertices:
-        for g in v.groups:
-            if g.group==gidx: wh[v.index]=g.weight
-    hm=wh>0.35; Hp=_V1[hm]
-    wr=np.array(JP['hand.'+sd_][0]); tip=np.array(JP['hand.'+sd_][1]); ax=(tip-wr)/np.linalg.norm(tip-wr)
-    U_,S_,Vt_=np.linalg.svd(Hp-Hp.mean(0)); dn=Vt_[2]
-    if dn[0]*sg<0: dn=-dn
-    dn=dn-ax*dn.dot(ax); dn/=np.linalg.norm(dn)
-    t=(_V1-wr)@ax; tmax=t[hm].max(); tk=0.42*tmax; R=(tmax-tk)/0.95
-    idx=np.where((wh>0.05)&(t>tk))[0]
-    for i in idx:
-        q=_V1[i]-wr; tt=q.dot(ax)-tk; h=q.dot(dn); rest=q-ax*q.dot(ax)-dn*h
-        phi=tt/R*min(1,wh[i]/0.6); rho=R+h
-        base=wr+ax*tk+rest-dn*R
-        _V1[i]=base+ax*(rho*math.sin(phi))+dn*(rho*math.cos(phi))
-set_verts(body,_V1)
 # --- escala para 1,52 m ---
 zmin=verts(body)[:,2].min(); zmax=verts(body)[:,2].max()
 k=1.52/(zmax-zmin); T=Matrix.Translation((0,0,0))@Matrix.Scale(k,4)@Matrix.Translation((0,0,-zmin))
 for o in (body,eL,eR): o.data.transform(T); o.data.update()
 JS={n:(tuple(T@Vector(h)),tuple(T@Vector(t))) for n,(h,t) in JP.items()}
 bpy.data.objects.remove(arm,do_unlink=True)
-import json; json.dump({'k':k,'zmin':zmin,'joints':JS},open(S+'joints1.json','w'),indent=1)
+import json; json.dump({'k':k,'zmin':zmin,'joints':JS,'fingers':FAX},open(S+'joints1.json','w'),indent=1)
 print("scale",k,"height",verts(body)[:,2].max())
 bpy.ops.wm.save_as_mainfile(filepath=S+'stage1.blend')
 rh.setup('BLENDER_WORKBENCH',(600,600))
@@ -141,3 +157,6 @@ rh.cam_shot(S+"s1_head_front.png",(0,-0.03,1.40),0.75,0,3,85)
 rh.cam_shot(S+"s1_head_side.png",(0,-0.03,1.40),0.75,75,3,85)
 rh.cam_shot(S+"s1_body_front.png",(0,0,0.77),4.2,0,4,50)
 rh.cam_shot(S+"s1_body_side.png",(0,0,0.77),4.2,90,4,50)
+_hc=JS['middle1.L'][0]
+rh.cam_shot(S+"s1_hand_side.png",(_hc[0],_hc[1],_hc[2]-0.03),0.5,90,5,50)
+rh.cam_shot(S+"s1_hand_front.png",(_hc[0],_hc[1],_hc[2]-0.03),0.5,0,5,50)

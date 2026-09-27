@@ -25,7 +25,7 @@ for it in range(25):
     Sm=np.zeros_like(PV); np.add.at(Sm,Ed[:,0],PV[Ed[:,1]]); np.add.at(Sm,Ed[:,1],PV[Ed[:,0]])
     PV[sm]+=0.5*(Sm[sm]/deg[sm][:,None]-PV[sm])
 # costas do paletó caem retas das escápulas ao quadril: preenche a lombar (envoltória traseira em cada coluna x)
-AW=B0.W[:,[bi[n] for n in B0.bones if n.startswith(('upperarm','forearm','hand'))]].sum(1)
+AW=B0.W[:,[bi[n] for n in B0.bones if n.startswith(('upperarm','forearm','hand','thumb','index','middle','ring','pinky'))]].sum(1)
 bk=(AW<0.3)&(PV[:,1]>0.0)&(PV[:,2]>0.66)&(PV[:,2]<1.24)&(np.abs(PV[:,0])<0.17)
 _fill=[]
 for xb in np.arange(-0.16,0.16,0.01):

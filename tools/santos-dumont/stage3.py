@@ -5,7 +5,7 @@ t0=time.time()
 OUT=sys.argv[-1] if sys.argv[-1].endswith('.js') else S+'santos-dumont.js'
 bpy.ops.wm.open_mainfile(filepath=S+'stage2b.blend')
 body=bpy.data.objects['body']; proxy=bpy.data.objects['proxy']
-JJ=json.load(open(S+'joints1.json'))['joints']
+J1=json.load(open(S+'joints1.json')); JJ=J1['joints']; FAX=J1.get('fingers',{})
 SOLE=json.load(open(S+'sole.json'))['SOLE']
 B=Body(body,JJ); BP=Body(proxy,JJ); bi=B.bi; J=B.J; BONES=B.bones
 V=B.V; fd=B.fdom; fc=B.fc
@@ -13,6 +13,9 @@ PARENT={'hips':None,'spine':'hips','chest':'spine','neck':'chest','head':'neck'}
 for s in ('L','R'):
     PARENT.update({f'upperarm.{s}':'chest',f'forearm.{s}':f'upperarm.{s}',f'hand.{s}':f'forearm.{s}',
                    f'thigh.{s}':'hips',f'shin.{s}':f'thigh.{s}',f'foot.{s}':f'shin.{s}'})
+    for f in ('thumb','index','middle','ring','pinky'):
+        PARENT.update({f'{f}1.{s}':f'hand.{s}',f'{f}2.{s}':f'{f}1.{s}',f'{f}3.{s}':f'{f}2.{s}'})
+FINGER=tuple(n for n in FAX)
 
 # ---------- corpo: mantém só o que aparece (cabeça, pescoço acima do colarinho, pulsos e mãos) ----------
 def ft(s,P):
@@ -26,7 +29,7 @@ for f in range(len(fd)):
     n=BONES[fd[f]]; z=fc[f][2]
     if n=='head' and z<1.505: keep[f]=True
     elif n=='neck' and z>ztop(math.atan2(fc[f][0],-(fc[f][1]+0.012)))-0.008: keep[f]=True
-    elif n.startswith('hand'): keep[f]=True
+    elif n.startswith('hand') or n in FAX: keep[f]=True
     elif n=='forearm.L' and tL[f]>0.88: keep[f]=True
     elif n=='forearm.R' and tR[f]>0.88: keep[f]=True
 bm=bm_from_faces(body,keep); bm.to_mesh(body.data); bm.free(); body.data.update()
@@ -56,7 +59,7 @@ def decimate(o,ratio):
     with ctx(o): bpy.ops.object.modifier_apply(modifier=m.name)
 
 PARTS=[ # objeto, material, pesos, decimação
- ('head','skin','xfer',0.45),('hands','skin','xfer',0.26),('eyeL','eye','head',1),('eyeR','eye','head',1),
+ ('head','skin','xfer',0.45),('hands','skin','xfer',0.42),('eyeL','eye','head',1),('eyeR','eye','head',1),
  ('hair','hair','xfer',0.5),('brows','hair','xfer',1),('mustache','hair','xfer',1),
  ('jacket','suit','torsoW',0.38),('sleeve.L','suit','sleeve.L',1),('sleeve.R','suit','sleeve.R',1),('skirt','suit','skirt',1),('pockets','suit','torsoW',1),
  ('trousers.P','suit','xfer',1),('trousers.L','suit','xfer',1),('trousers.R','suit','xfer',1),
@@ -221,7 +224,10 @@ qc=np.round(np.clip(C,0,1)*255).astype(np.uint8)
 bones=[]
 for n in BONES+EXTRA:
     h=np.array(J[n][0]) if n in J else np.array(LIDS['centers']['L' if n=='lid.L' else 'R']); h3=[-h[0],h[2]+SOLE,h[1]]
-    bones.append({'n':n,'p':PARENT.get(n,'head'),'h':[round(float(x),5) for x in h3]})
+    bo={'n':n,'p':PARENT.get(n,'head'),'h':[round(float(x),5) for x in h3]}
+    if n in FAX:                                          # dedos: eixo de flexão (+ = fecha para a palma) e ponta da falange
+        a=FAX[n]['ax']; t=np.array(J[n][1]); bo['ax']=[round(-a[0],4),round(a[2],4),round(a[1],4)]; bo['t']=[round(float(-t[0]),5),round(float(t[2]+SOLE),5),round(float(t[1]),5)]
+    bones.append(bo)
 HA=json.load(open(S+'harness.json'))
 harness={k:[round(-v[0],5),round(v[2]+SOLE,5),round(v[1],5)] for k,v in HA.items()}
 data={'v':1,'harness':harness,'count':int(len(P)),'pmin':pmin.round(6).tolist(),'ps':ps.tolist(),'uvmin':uvmin.round(6).tolist(),'uvs':uvs.tolist(),

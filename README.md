@@ -5,7 +5,8 @@ Jogo de exploração 3D da Encantada, casa de Santos Dumont em Petrópolis/RJ
 incluído no repositório por direitos de imagem) e da pesquisa documentada em
 [PESQUISA.md](PESQUISA.md). Inclui a réplica voável do **14-bis**
 ([14BIS.md](14BIS.md)) e uma **serra de Petrópolis de ~5 × 5 km** para voar,
-com a cidade, os marcos históricos e a Mata Atlântica.
+com a cidade, os marcos históricos e a Mata Atlântica — e, descendo a serra para o sul,
+a **Pequena Rio de Janeiro**, onde termina a missão **"Por céus nunca dantes navegados"**.
 
 ## Como abrir
 Basta dar **duplo clique em `index.html`**: ele abre a página de escolha de
@@ -44,7 +45,7 @@ acessar o mapa, o modo noturno e os destinos. As preferências ficam salvas no n
 | `W A S D` | andar |
 | `Shift` | correr |
 | `Espaço` | pular |
-| `E` | abrir/fechar a porta ou as venezianas da janela mais próxima; acender a lareira |
+| `E` | abrir/fechar a porta ou as venezianas da janela mais próxima; acender a lareira; **conversar** com o Chapin e com a Virgínia (missão) |
 | `F` | **entrar/sair do 14-bis** (como no GTA — para sair, pouse e pare) |
 | `C` | troca a câmera: 3ª pessoa (Santos Dumont de terno e panamá) → 3ª pessoa aberta → 3ª pessoa bem perto (no ombro) → 1ª pessoa; pilotando, alterna os pontos de vista do 14-bis |
 | Rodinha do mouse | zoom: a pé, aproxima/afasta a câmera de 3ª pessoa (cada câmera lembra o seu zoom) e, na 1ª pessoa, vira luneta (até 2,8×); pilotando, zoom das câmeras do 14-bis |
@@ -58,6 +59,43 @@ acessar o mapa, o modo noturno e os destinos. As preferências ficam salvas no n
 | `N` | dia ↔ noite |
 | `1`–`0` | teleporte: Jardim, Rua & Relógio, Porão, Sala, Mezanino, Passarela, Observatório, **Campo de Bagatelle**, **Centro** (Catedral), **Mirante** (capela do morro) |
 | `Esc` | abre/fecha Configurações e fecha o mapa |
+
+## ✉️ Missão: "Por céus nunca dantes navegados"
+
+Petrópolis, novembro de 1906 — dias depois dos 220 m de Bagatelle. Um telegrama
+chama Santos Dumont à **tenda-oficina do Campo de Bagatelle** (atrás do público),
+onde o mecânico **Albert Chapin** conta a história dos recordes e entrega uma
+encomenda para **Virgínia**, a irmã que ensinou Alberto a ler: um exemplar de
+*Dans l'air* embrulhado na seda japonesa das asas. O pacote vai na mão do
+Santos Dumont até o 14-bis e depois **amarrado no cesto**. Voe para o sul (siga o
+rio Piabanha até o lago do Quitandinha e a Estrada da Serra até a baía), **pouse
+na areia de Copacabana, entre as fogueiras**, desça (`F`) e leve o pacote até o
+**coreto da Avenida Atlântica**, onde ela espera para completar a história.
+
+- `E` conversa (perto da pessoa) e avança o diálogo; `Esc` fecha.
+- O objetivo aparece no alto da tela, com distância e direção; uma **coluna de luz
+  dourada** marca o destino no mundo e uma ★ aponta no minimapa e no mapa (`M`).
+- Se o 14-bis quebrar, o pacote continua a salvo no cesto: `R` volta ao campo.
+- A encomenda tem de chegar **pelo céu** — a pé ou por teleporte, a Virgínia pede
+  para ver o aeroplano chegar.
+- No fim, a *Gazeta da Pequena Rio* conta o feito (distância, tempo, altura) e uma
+  **nota histórica** separa o que é fato do que é licença poética; o povo corre para
+  a praia e há fogos sobre o mar. Para voar de novo, fale outra vez com o Chapin.
+
+## 🏖 A Pequena Rio de Janeiro (1906, em miniatura)
+
+Ao sul da serra, uma capital de brinquedo (~1:10) com os marcos no lugar certo do
+mapa: a **baía de Guanabara** com o **Pão de Açúcar** e o Morro da Urca na barra, o
+**Cristo Redentor** no Corcovado (licença poética: o de verdade é de 1931), a
+**Avenida Central** e o **Obelisco** de 1906, o **Theatro Municipal em obras**
+(inaugurado em 1909), a **Candelária**, a **Praça XV** com o Paço Imperial (em 1906,
+Correios e Telégrafos), o chafariz do Mestre Valentim e o Cais Pharoux, a **Ilha
+Fiscal**, os **Arcos da Lapa com o bonde**, o Outeiro da Glória, o Palácio do
+Catete, a **Avenida Beira-Mar** (inaugurada em novembro de 1906), Botafogo, a
+**praia de Copacabana** com a igrejinha no rochedo, Niterói e a Fortaleza de Santa
+Cruz — com povo, tílburis, a barca de Niterói, vapores e saveiros. Em
+**Configurações → Visitar um lugar** há atalhos para Copacabana, a Praça XV e o
+Cristo. O mar vai até o horizonte; pousar nele derruba o 14-bis.
 
 ## ✈️ Pilote o 14-bis!
 
