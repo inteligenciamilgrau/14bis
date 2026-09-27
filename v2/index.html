@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<!-- a foto da capa vem do CSS, que o navegador só descobre depois dos scripts: pede já, senão ela chega com o
+     mundo 3D sendo montado e só aparece quando a montagem termina -->
+<link rel="preload" as="image" href="../assets/cover.webp" type="image/webp" fetchpriority="high">
 <title>14 Bis do Dumont — A Encantada</title>
 <style>
   html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;font-family:Georgia,'Times New Roman',serif}
@@ -30,7 +33,7 @@
   #help{position:absolute;inset:0;z-index:10;display:flex;align-items:center;box-sizing:border-box;
     padding:clamp(30px,6.5vw,116px);overflow:auto;color:#f8eed6;
     background:linear-gradient(90deg,rgba(5,22,28,.83) 0%,rgba(5,22,28,.52) 30%,rgba(5,22,28,.08) 72%),
-      url('../assets/cover.png') center center/cover no-repeat;background-color:#102d35}
+      url('../assets/cover.webp') center center/cover no-repeat;background-color:#102d35}
   #help .card{width:min(545px,100%);flex:none;text-shadow:0 3px 17px #07171fcc}
   #help .eyebrow{margin:0 0 5px;color:#efcf91;font-size:12px;letter-spacing:.25em;font-weight:bold}
   #help .cover-logo{display:block;width:100%;height:auto;margin:0 0 14px;filter:drop-shadow(0 5px 16px #061a20a6)}
@@ -41,7 +44,7 @@
   #playButton:hover,#playButton:focus-visible{transform:translateY(-2px);filter:brightness(1.1)}
   #help .cover-caption{margin:23px 0 0;color:#e5d6b8;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
   @media(max-width:700px){#help{align-items:flex-end;padding:95px 23px 38px;
-      background-image:linear-gradient(180deg,rgba(5,22,28,.15) 0%,rgba(5,22,28,.58) 42%,rgba(5,22,28,.96) 100%),url('../assets/cover.png');
+      background-image:linear-gradient(180deg,rgba(5,22,28,.15) 0%,rgba(5,22,28,.58) 42%,rgba(5,22,28,.96) 100%),url('../assets/cover.webp');
       background-position:61% center}#help .card{width:100%;max-width:480px}#help .eyebrow{font-size:10px}
     #help .cover-lead{font-size:17px;margin-bottom:20px}#help .cover-caption{font-size:10px}}
   @media(max-height:720px) and (min-width:701px){#help{align-items:flex-start;padding-top:34px;padding-bottom:28px}

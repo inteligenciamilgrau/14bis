@@ -205,5 +205,5 @@ ajuste automático de resolução).
 Código sob [licença MIT](LICENSE). Inclui a biblioteca
 [three.js](https://threejs.org) (MIT, `lib/three.min.js`). O acervo de fotos
 e plantas usado como referência **não** faz parte do repositório. A arte da
-capa (`assets/cover.png`) foi gerada por IA (ChatGPT, gpt-image); o prompt está
+capa (`assets/cover.webp`) foi gerada por IA (ChatGPT, gpt-image); o prompt está
 em [assets/cover-prompt.txt](assets/cover-prompt.txt).
