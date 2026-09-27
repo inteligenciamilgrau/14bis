@@ -91,8 +91,40 @@
   #settings .travel-grid button{white-space:normal;text-align:left}
   #settings .travel-grid small{display:block;opacity:.7;margin-top:3px}
   #settings .settings-note{min-height:18px;color:#f0d48b}
+  #settings .set-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:16px 0 0;border-bottom:1px solid #b3945966}
+  #settings .set-tabs button{margin-bottom:-1px;border-radius:9px 9px 0 0;border:1px solid transparent;border-bottom:0;background:none;
+    color:#cfd8c2;font:600 13.5px Georgia,serif;padding:8px 14px}
+  #settings .set-tabs button:hover{background:#1c3a2c;color:#f7f1df}
+  #settings .set-tabs button[aria-selected="true"]{background:#1b3529;color:#f7e3b0;border-color:#b3945966;box-shadow:0 1px 0 #1b3529}
+  #settings .set-page{display:none;min-height:360px}
+  #settings .set-page.on{display:block}
+  #settings .set-page>p:first-child{margin-top:14px}
+  #settings .snd-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,1.1fr) 46px;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid #ffffff16}
+  #settings .snd-row span{font-size:13px}
+  #settings .snd-row small{display:block;opacity:.65;font-size:11.5px;margin-top:2px}
+  #settings .snd-row output{font:600 12px ui-monospace,Consolas,monospace;color:#e2c889;text-align:right}
+  #settings input[type=range]{width:100%;margin:0;accent-color:#c89449;cursor:pointer}
+  #settings input[type=range]:disabled{opacity:.4;cursor:default}
+  #settings .snd-tog{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #ffffff16;font-size:13px}
+  #settings .snd-tog small{display:block;opacity:.65;font-size:11.5px;margin-top:2px}
+  #settings .switch{min-width:96px;font:600 12px sans-serif}
+  #settings .switch[aria-checked="true"]{background:#c89449;border-color:#f1cf80;color:#173027}
+  #settings .tracks{display:grid;gap:8px;margin-top:6px}
+  #settings .track{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;
+    border:1px solid #ffffff1f;border-radius:10px;background:#0f2019}
+  #settings .track.playing{border-color:#c89449;background:#1a2f22}
+  #settings .track .play{width:42px;height:42px;padding:0;border-radius:50%;font-size:15px}
+  #settings .track em{font:600 11px sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#e2c889;margin-right:8px}
+  #settings .track b{font:italic 600 15.5px Georgia,serif;color:#f7e3b0}
+  #settings .track p{margin:3px 0 0;font-size:12px;line-height:1.4;color:#cfd8c2}
+  #settings .track label{display:flex;align-items:center;gap:6px;font-size:12px;color:#d6dcca;cursor:pointer;white-space:nowrap}
+  #settings .track input[type=checkbox]{accent-color:#c89449;width:16px;height:16px;cursor:pointer}
+  #settings .mus-now{min-height:18px;margin:12px 0 0;font-size:12.5px;color:#cfd8c2}
   @media(max-width:620px){#settings .panel{padding:18px}#settings .settings-grid{grid-template-columns:1fr}
-    #settings .travel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#mode{display:none}}
+    #settings .travel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#mode{display:none}
+    #settings .set-tabs button{padding:7px 9px;font-size:12.5px}
+    #settings .snd-row{grid-template-columns:minmax(0,1fr) 46px}#settings .snd-row input{grid-column:1/-1;grid-row:2}
+    #settings .track{grid-template-columns:auto minmax(0,1fr)}#settings .track label{grid-column:2}}
 </style>
 </head>
 <body>
@@ -111,11 +143,23 @@
 <div id="settings" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
   <div class="panel">
     <header><h2 id="settingsTitle">Configurações</h2><button id="settingsClose" type="button">Fechar ×</button></header>
-    <p>Selecione uma tecla para mudar o atalho. As alterações ficam salvas neste navegador. Esc fecha o menu.</p>
-    <div id="bindings"></div>
-    <div class="settings-actions"><button id="settingsReset" type="button">Restaurar teclas padrão</button>
-      <button id="settingsMap" type="button">Abrir mapa</button><button id="settingsNight" type="button">Alternar dia e noite</button></div>
-    <h3>Visitar um lugar</h3><div class="travel-grid" id="settingsTravel"></div>
+    <div class="set-tabs" role="tablist" aria-label="Seções das configurações">
+      <button type="button" role="tab" id="tab-teclado" aria-controls="page-teclado" aria-selected="true" data-tab="teclado">⌨ Teclado</button>
+      <button type="button" role="tab" id="tab-graficos" aria-controls="page-graficos" aria-selected="false" tabindex="-1" data-tab="graficos">🖼 Gráficos</button>
+      <button type="button" role="tab" id="tab-efeitos" aria-controls="page-efeitos" aria-selected="false" tabindex="-1" data-tab="efeitos">🔊 Efeitos</button>
+      <button type="button" role="tab" id="tab-musica" aria-controls="page-musica" aria-selected="false" tabindex="-1" data-tab="musica">🎼 Música</button>
+      <button type="button" role="tab" id="tab-viagem" aria-controls="page-viagem" aria-selected="false" tabindex="-1" data-tab="viagem">🧭 Viagem</button></div>
+    <section class="set-page on" id="page-teclado" role="tabpanel" aria-labelledby="tab-teclado">
+      <p>Selecione uma tecla para mudar o atalho. As alterações ficam salvas neste navegador. Esc fecha o menu.</p>
+      <div id="bindings"></div>
+      <div class="settings-actions"><button id="settingsReset" type="button">Restaurar teclas padrão</button></div></section>
+    <section class="set-page" id="page-graficos" role="tabpanel" aria-labelledby="tab-graficos">
+      <p>Qualidade da imagem e desempenho. Os níveis prontos ajustam tudo de uma vez; mexa nos itens para personalizar.</p><div id="setGraficos"></div></section>
+    <section class="set-page" id="page-efeitos" role="tabpanel" aria-labelledby="tab-efeitos"><div id="setEfeitos"></div></section>
+    <section class="set-page" id="page-musica" role="tabpanel" aria-labelledby="tab-musica"><div id="setMusica"></div></section>
+    <section class="set-page" id="page-viagem" role="tabpanel" aria-labelledby="tab-viagem">
+      <h3>Visitar um lugar</h3><div class="travel-grid" id="settingsTravel"></div>
+      <div class="settings-actions"><button id="settingsMap" type="button">Abrir mapa</button><button id="settingsNight" type="button">Alternar dia e noite</button></div></section>
     <p id="settingsNote" class="settings-note" role="status" aria-live="polite"></p>
   </div>
 </div>
@@ -128,6 +172,7 @@
 </div></div>
 <script src="../lib/three.min.js"></script>
 <script src="../lib/santos-dumont.js"></script>
+<script src="../lib/musica.js"></script>
 <script>
 'use strict';
 window.onerror=function(msg,src,line){var d=document.createElement('div');
@@ -5460,15 +5505,17 @@ window._anim14=function(dt){const S=S14;
 
 /* ---------- som do Antoinette V8 (sintetizado): 4 explosões por volta, ronco das pás e vento ---------- */
 const SND14={ctx:null,mute:false,
-  init(){if(this.ctx)return;try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;const c=this.ctx=new A();
-    const out=this.out=c.createGain();out.gain.value=0;const lp=c.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1400;out.connect(lp);lp.connect(c.destination);
+  // saídas pelo mixer único (bloco SOM E MÚSICA: volumes em Configurações › Efeitos); sem ele, direto nos alto-falantes
+  bus(n){return window._SOM?window._SOM.out(n):this.ctx.destination;},
+  init(){if(this.ctx)return;try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;const c=this.ctx=window._SOM?window._SOM.ac():new A();if(!c)return;
+    const out=this.out=c.createGain();out.gain.value=0;const lp=c.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1400;out.connect(lp);lp.connect(this.bus('motor'));
     const mod=c.createGain();mod.gain.value=0.65;mod.connect(out);             // pulsação das pás: modula antes do volume geral
     const o1=this.o1=c.createOscillator();o1.type='sawtooth';const g1=c.createGain();g1.gain.value=0.5;o1.connect(g1);g1.connect(mod);
     const o2=this.o2=c.createOscillator();o2.type='square';const g2=c.createGain();g2.gain.value=0.22;o2.connect(g2);g2.connect(mod);
     const n=c.createBuffer(1,c.sampleRate*2,c.sampleRate),d=n.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
     this.nb=n;const ns=c.createBufferSource();ns.buffer=n;ns.loop=true;const bp=this.bp=c.createBiquadFilter();bp.type='bandpass';bp.Q.value=0.8;
-    const gn=this.gn=c.createGain();gn.gain.value=0;ns.connect(bp);bp.connect(gn);gn.connect(c.destination);
-    const wl=c.createBiquadFilter();wl.type='lowpass';wl.frequency.value=500;const gw=this.gw=c.createGain();gw.gain.value=0;ns.connect(wl);wl.connect(gw);gw.connect(c.destination);
+    const gn=this.gn=c.createGain();gn.gain.value=0;ns.connect(bp);bp.connect(gn);gn.connect(this.bus('motor'));
+    const wl=c.createBiquadFilter();wl.type='lowpass';wl.frequency.value=500;const gw=this.gw=c.createGain();gw.gain.value=0;ns.connect(wl);wl.connect(gw);gw.connect(this.bus('vento'));
     const lfo=this.lfo=c.createOscillator();lfo.type="sine";const lg=c.createGain();lg.gain.value=0.35;lfo.connect(lg);lg.connect(mod.gain);
     o1.start();o2.start();ns.start();lfo.start();}catch(e){this.ctx=null;}},
   // batida (DMG14): estalos secos de bambu partindo e seda rasgando, mais um baque grave nas fortes; a = força (m/s), p = onde
@@ -5479,7 +5526,7 @@ const SND14={ctx:null,mute:false,
       const g=c.createGain(),t0=t+k*0.045+Math.random()*0.03,v=Math.min(0.9,(low?0.05*a:0.1+a*0.05))*att;
       if(low&&a<4)continue;
       g.gain.setValueAtTime(0.0001,t);g.gain.setValueAtTime(v,t0);g.gain.exponentialRampToValueAtTime(0.0005,t0+(low?0.45:0.12+Math.random()*0.15));
-      src.connect(f);f.connect(g);g.connect(c.destination);src.start(t0,Math.random()*1.5);src.stop(t0+0.7);}},
+      src.connect(f);f.connect(g);g.connect(this.bus('impacto'));src.start(t0,Math.random()*1.5);src.stop(t0+0.7);}},
   set(v){if(this.out)this.out.gain.setTargetAtTime(0,this.ctx.currentTime,0.1);if(this.gn)this.gn.gain.setTargetAtTime(0,this.ctx.currentTime,0.1);
     if(this.gw)this.gw.gain.setTargetAtTime(0,this.ctx.currentTime,0.1);},
   update(dt){if(!this.ctx)return;const c=this.ctx,t=c.currentTime,S=S14;if(c.state==='suspended')c.resume();
@@ -5540,7 +5587,7 @@ const keys={};
 const DEFAULT_BINDINGS={forward:'KeyW',back:'KeyS',left:'KeyA',right:'KeyD',run:'ShiftLeft',jump:'Space',
   interact:'KeyE',board:'KeyF',camera:'KeyC',quickCamera:'KeyV',freeFly:'KeyG',map:'KeyM',mission:'Tab',dayNight:'KeyN',resetPlane:'KeyR',
   elevatorUp:'ArrowUp',elevatorDown:'ArrowDown',rudderLeft:'ArrowLeft',rudderRight:'ArrowRight',
-  trimUp:'KeyQ',trimDown:'KeyZ',ignition:'KeyI',sound:'KeyO',fps:'F3',
+  trimUp:'KeyQ',trimDown:'KeyZ',ignition:'KeyI',sound:'KeyO',fps:'F3',music:'KeyK',
   tp0:'Digit1',tp1:'Digit2',tp2:'Digit3',tp3:'Digit4',tp4:'Digit5',tp5:'Digit6',tp6:'Digit7',tp7:'Digit8',tp8:'Digit9',tp9:'Digit0'};
 const BINDING_GROUPS=[
   ['Exploração',[['forward','Avançar / aumentar gás'],['back','Recuar / reduzir gás'],['left','Esquerda / inclinar corpo'],
@@ -5549,9 +5596,10 @@ const BINDING_GROUPS=[
     ['quickCamera','Alternar 1ª e 3ª pessoa'],['freeFly','Ativar voo livre']]],
   ['Voo do 14-bis',[['elevatorUp','Elevar célula dianteira'],['elevatorDown','Baixar célula dianteira'],
     ['rudderLeft','Guinar à esquerda'],['rudderRight','Guinar à direita'],['trimUp','Aumentar compensador'],
-    ['trimDown','Reduzir compensador'],['ignition','Ligar / cortar ignição'],['sound','Ligar / desligar som'],
+    ['trimDown','Reduzir compensador'],['ignition','Ligar / cortar ignição'],['sound','Ligar / desligar som do motor'],
     ['resetPlane','Voltar ao campo']]],
-  ['Mundo',[['map','Abrir mapa'],['mission','Mostrar / esconder a missão'],['dayNight','Alternar dia e noite'],['fps','Mostrar / esconder FPS']]],
+  ['Mundo',[['map','Abrir mapa'],['mission','Mostrar / esconder a missão'],['dayNight','Alternar dia e noite'],['fps','Mostrar / esconder FPS'],
+    ['music','Ligar / desligar música']]],
   ['Números: viagem a pé · câmera no 14-bis',[['tp0','Jardim · ✈ Perseguição'],['tp1','Rua e Relógio · ✈ Lateral'],['tp2','Porão · ✈ Frente ¾'],
     ['tp3','Térreo · ✈ Espectador'],['tp4','Mezanino · ✈ No canard'],['tp5','Passarela · ✈ Ponta da asa'],['tp6','Observatório · ✈ Atrás da hélice'],
     ['tp7','Campo de Bagatelle · ✈ Órbita livre'],['tp8','Centro · ✈ De cima'],['tp9','Mirante · ✈ Cesto']]]
@@ -5561,7 +5609,11 @@ let bindings={...DEFAULT_BINDINGS};
 // F1–F10 valem (menos F5 = recarregar); F11/F12 ficam com o navegador (tela cheia, ferramentas)
 function validCode(code){return typeof code==='string'&&/^(Key[A-Z]|Digit[0-9]|Numpad[0-9]|F[1-46-9]|F10|Arrow(Up|Down|Left|Right)|Space|Shift(Left|Right)|Enter|Tab|Backspace|CapsLock|Comma|Period|Semicolon|Quote|Bracket(Left|Right)|Minus|Equal|Slash|Backslash)$/.test(code);}
 try{const saved=JSON.parse(localStorage.getItem(bindingStore));if(saved&&typeof saved==='object'){
-  const candidate={...DEFAULT_BINDINGS,...saved},codes=bindingIds.map(id=>candidate[id]);
+  const candidate={...DEFAULT_BINDINGS,...saved};
+  // ação nova (sem tecla salva) cuja tecla padrão o jogador já deu a outra: ganha uma tecla livre, em vez de zerar todos os atalhos dele
+  for(const id of bindingIds)if(!(id in saved)&&bindingIds.some(o=>o!==id&&candidate[o]===candidate[id])){
+    const free=['KeyK','KeyL','KeyJ','KeyU','KeyY','KeyP','KeyB','KeyX','KeyT'].find(c=>!bindingIds.some(o=>candidate[o]===c));if(free)candidate[id]=free;}
+  const codes=bindingIds.map(id=>candidate[id]);
   if(codes.every(validCode)&&new Set(codes).size===codes.length)bindings=candidate;
 }}catch(_){}
 function held(id){return !!keys[bindings[id]];}
@@ -5604,9 +5656,12 @@ document.getElementById('settingsReset').addEventListener('click',()=>{bindings=
 document.getElementById('settingsMap').addEventListener('click',()=>{document.getElementById('help').style.display='none';closeSettings();toggleBig(true);});
 document.getElementById('settingsNight').addEventListener('click',()=>{toggleNight();settingsNote(night?'Modo noite ativado.':'Modo dia ativado.');});
 renderSettings();
-// câmeras a pé: 3ª pessoa perto → 3ª pessoa aberta → 1ª pessoa
+// câmeras a pé: 3ª pessoa perto → 3ª pessoa aberta → bem perto → 1ª pessoa → corpo inteiro
 // o = câmera colada atrás da cabeça, acompanhando o olhar para cima/baixo; s = deslocamento lateral (0 = centralizada)
-const WALKCAM=[{n:'3ª pessoa',d:2.2,h:0},{n:'3ª pessoa aberta',d:5.8,h:0.9},{n:'3ª pessoa bem perto',d:1.1,h:0,o:1,s:0},{n:'1ª pessoa',d:0,h:0}];let walkCam=0;
+// v = vitrine: de frente, o corpo todo do chapéu aos pés; o mouse gira a câmera em volta dele (oy = ângulo em torno do
+//     corpo, 0 = de frente; op = elevação) em vez de virar o SD; fov = lente mais fechada, sem distorcer o corpo
+const WALKCAM=[{n:'3ª pessoa',d:2.2,h:0},{n:'3ª pessoa aberta',d:5.8,h:0.9},{n:'3ª pessoa bem perto',d:1.1,h:0,o:1,s:0},{n:'1ª pessoa',d:0,h:0},
+  {n:'corpo inteiro',d:3.1,h:0,v:1,fov:40,oy:0.45,op:0.1}];let walkCam=0;
 const WALKCAM_1P=WALKCAM.findIndex(c=>c.d===0);
 function setWalkCam(i){walkCam=i;thirdP=WALKCAM[i].d>0;updMode();}
 function walkCamDist(c){return c.d*(c.z||1);}
@@ -5665,6 +5720,9 @@ canvas.addEventListener('click',()=>{if(!settingsOpen&&!bigOpen&&getComputedStyl
 document.addEventListener('pointerlockchange',()=>{
   document.getElementById('crosshair').style.display=document.pointerLockElement===canvas?'block':'none';});
 addEventListener('mousemove',e=>{if(document.pointerLockElement!==canvas)return;
+  const wv=WALKCAM[walkCam];
+  if(wv.v&&thirdP&&!player.fly&&!(window._PLT&&window._PLT.on)){            // corpo inteiro: o mouse gira a câmera em volta do SD
+    wv.oy-=e.movementX*0.0035;wv.op=Math.max(-0.3,Math.min(1.3,wv.op+e.movementY*0.0025));return;}
   player.yaw-=e.movementX*0.0022;player.pitch-=e.movementY*0.0022;
   player.pitch=Math.max(-1.45,Math.min(1.45,player.pitch));});
 
@@ -5878,10 +5936,13 @@ const MISSAO=(function(){
     D.i++;if(D.i>=D.lines.length){const end=D.onEnd;closeDlg();if(end)end();return;}
     const l=D.lines[D.i];D.shown=0;const w=who[l.w];$('dlgWho').textContent=w.n;$('dlgRole').textContent='— '+w.r;
     for(const k in who)if(who[k].o)who[k].o.talk=0;if(w.o)w.o.talk=1;
-    if(l.a&&ACT[l.a]){ACT[l.a]();if(l.a==='give'||l.a==='receive')D.committed=true;}
+    if(l.a&&ACT[l.a])ACT[l.a]();
     $('dlgNav').innerHTML=(D.i<D.lines.length-1?'<kbd>'+key('interact')+'</kbd> continuar':'<kbd>'+key('interact')+'</kbd> encerrar')+' · <kbd>Esc</kbd> fechar';}
-  function closeDlg(esc){if(!D)return;if(esc&&D.committed&&D.onEnd){const e=D.onEnd;D.onEnd=null;setTimeout(e,0);}for(const k in who)if(who[k].o){who[k].o.talk=0;who[k].o.give=0;}D=null;dlg.style.display='none';
-    camera.fov=70;camera.updateProjectionMatrix();}
+  function closeDlg(esc){if(!D)return;const d=D;for(const k in who)if(who[k].o){who[k].o.talk=0;who[k].o.give=0;}D=null;dlg.style.display='none';
+    camera.fov=70;camera.updateProjectionMatrix();
+    // [Esc] pula o texto, não a história: quem já leu a conversa recebe (ou entrega) o pacote das falas que ainda viriam
+    if(esc&&d.onEnd){let got=0;for(let j=d.i+1;j<d.lines.length;j++){const a=d.lines[j].a;if(a==='give'){putPkg('sd');got=1;}else if(a==='receive'){putPkg('virginia');got=1;}}
+      if(got)ding();setTimeout(d.onEnd,0);}}
   ACT.give=()=>{chapin.give=1;setTimeout(()=>{chapin.give=0;putPkg('sd');ding();},900);};
   ACT.receive=()=>{virg.give=1;setTimeout(()=>{putPkg('virginia');ding();},700);};
   ACT.wave=()=>{virg.wave=2.5;};
@@ -5962,12 +6023,13 @@ const MISSAO=(function(){
       <li><b>Curiosidade:</b> o primeiro correio aéreo oficial do mundo voou em 18/02/1911, na Índia, com o francês Henri Pequet.</li></ul></details>
       <button type="button" id="misOk">Continuar explorando a Pequena Rio</button></div>`;
     card.style.display='flex';if(document.pointerLockElement)document.exitPointerLock();$('misOk').onclick=closeCard;}
-  let AC=null;const actx=()=>{try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();}catch(e){AC=null;}return AC;};
-  function note(f,t0,d,type,vol){const c=actx();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type=type||'triangle';o.frequency.value=f;
+  let AC=null;const actx=()=>{if(window._SOM)return window._SOM.ac();   // mesmo contexto e mixer do resto do jogo (Configurações › Efeitos)
+    try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();}catch(e){AC=null;}return AC;};
+  function note(f,t0,d,type,vol,bus){const c=actx();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type=type||'triangle';o.frequency.value=f;
     g.gain.setValueAtTime(0,c.currentTime+t0);g.gain.linearRampToValueAtTime(vol||0.12,c.currentTime+t0+0.02);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+t0+d);
-    o.connect(g);g.connect(c.destination);o.start(c.currentTime+t0);o.stop(c.currentTime+t0+d+0.05);}
+    o.connect(g);g.connect(window._SOM?window._SOM.out(bus||'aviso'):c.destination);o.start(c.currentTime+t0);o.stop(c.currentTime+t0+d+0.05);}
   function ding(){note(1318,0,0.9,'sine',0.09);note(1976,0.05,0.7,'sine',0.05);}
-  function fanfare(){[[523,0,.25],[659,.22,.25],[784,.44,.25],[1047,.66,.7],[784,1.3,.22],[1047,1.5,1.2]].forEach(n=>{note(n[0],n[1],n[2],'triangle',0.1);note(n[0]/2,n[1],n[2],'square',0.03);});}
+  function fanfare(){if(window._SOM)window._SOM.duck(3.2,0.3);[[523,0,.25],[659,.22,.25],[784,.44,.25],[1047,.66,.7],[784,1.3,.22],[1047,1.5,1.2]].forEach(n=>{note(n[0],n[1],n[2],'triangle',0.1);note(n[0]/2,n[1],n[2],'square',0.03);});}
   const FW=(function(){const N=2400,pos=new Float32Array(N*3),col=new Float32Array(N*3),g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
     const dot=tex(32,32,(g2,w,h)=>{const gr=g2.createRadialGradient(16,16,0,16,16,16);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(0.35,'rgba(255,255,255,.7)');gr.addColorStop(1,'rgba(255,255,255,0)');g2.fillStyle=gr;g2.fillRect(0,0,w,h);});
@@ -5981,7 +6043,7 @@ const MISSAO=(function(){
         for(const r of rockets){if(r.done)continue;r.t+=dt;if(r.t<0)continue;r.y+=r.vy*dt;r.vy-=9.8*dt;
           if(r.vy<4){r.done=true;for(let i=0;i<110;i++){const p=P[k];k=(k+1)%N;const u=Math.random()*2-1,a=Math.random()*PI*2,s=Math.sqrt(1-u*u),sp=13+Math.random()*5;
               p.x=r.x;p.y=r.y;p.z=r.z;p.vx=Math.cos(a)*s*sp;p.vy=u*sp;p.vz=Math.sin(a)*s*sp;p.l=0;p.L=1.8+Math.random()*1.2;p.r=r.c[0];p.gg=r.c[1];p.b=r.c[2];}
-            if(Math.random()<0.8)note(90+Math.random()*40,0,0.35,'sawtooth',0.03);}
+            if(Math.random()<0.8)note(90+Math.random()*40,0,0.35,'sawtooth',0.03,'fogos');}
           else{const p=P[k];k=(k+1)%N;p.x=r.x;p.y=r.y;p.z=r.z;p.vx=p.vy=p.vz=0;p.l=0;p.L=0.5;p.r=1;p.gg=0.8;p.b=0.5;alive++;}}
         for(let i=0;i<N;i++){const p=P[i];if(p.l>=p.L){pos[i*3+1]=-999;continue;}p.l+=dt;p.vy-=6*dt;p.vx*=0.985;p.vz*=0.985;p.vy*=0.985;
           p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;const f=1-p.l/p.L;pos[i*3]=p.x;pos[i*3+1]=p.y;pos[i*3+2]=p.z;col[i*3]=p.r*f*2;col[i*3+1]=p.gg*f*2;col[i*3+2]=p.b*f*2;alive++;}
@@ -6468,6 +6530,8 @@ const POST=(function(){if(!renderer.capabilities.isWebGL2||QS.has('nopost'))retu
   function pass(m,t){quad.material=m;renderer.setRenderTarget(t);renderer.render(sc,cam);}
   const P={expo:night?1.25:0.95,luz:!!GFXS.luz,calls:0,tri:0},sp=V3(0,0,0),v2=new THREE.Vector2();
   P.setAA=function(n){main.dispose();main=mkMain(n);P.resize();};
+  // os raios de sol só são desenhados olhando para o sol: sem isto o shader deles compila nessa hora (travada no jogo)
+  P.warm=function(){mRay.uniforms.tS.value=main.texture;pass(mRay,ray);renderer.setRenderTarget(null);};
   P.resize=function(){renderer.getDrawingBufferSize(v2);const w=Math.max(2,v2.x),hh=Math.max(2,v2.y);P.w=w;P.h=hh;
     main.setSize(w,hh);h.setSize(w>>1,hh>>1);q1.setSize(w>>2,hh>>2);q2.setSize(w>>2,hh>>2);
     e1.setSize(Math.max(1,w>>3),Math.max(1,hh>>3));e2.setSize(Math.max(1,w>>3),Math.max(1,hh>>3));ray.setSize(w>>2,hh>>2);
@@ -6641,7 +6705,7 @@ const GFX=(function(){const S=GFXS,gl=renderer.getContext(),$=id=>document.getEl
     detalhe:v=>['Poucos','Médios','Muitos','Todos'][v],mata:v=>['Curto','Médio','Longo','Máximo'][v],
     fpsMax:v=>v?v+' FPS':'Sem limite',fpsShow:v=>v?'Visível':'Escondido'};
   const sec=document.createElement('section');sec.setAttribute('aria-labelledby','gfxTitle');
-  sec.innerHTML='<h3 id="gfxTitle">Gráficos</h3><div class="gfx-presets" role="radiogroup" aria-label="Nível de qualidade"></div>'+
+  sec.innerHTML='<h3 id="gfxTitle">Nível de qualidade</h3><div class="gfx-presets" role="radiogroup" aria-label="Nível de qualidade"></div>'+
     '<div class="settings-grid" id="gfxGrid"></div><p class="gfx-info" id="gfxInfo" role="status"></p>';
   const pr=sec.querySelector('.gfx-presets');
   for(const n of ['baixa','media','alta','ultra']){const b=document.createElement('button');b.type='button';b.textContent=NIV[n];b.dataset.nivel=n;
@@ -6665,7 +6729,8 @@ const GFX=(function(){const S=GFXS,gl=renderer.getContext(),$=id=>document.getEl
     el.textContent='Imagem de '+v2.x+'×'+v2.y+' px (janela '+innerWidth+'×'+innerHeight+')'+(PR<PR0-0.01?', reduzida pela resolução dinâmica':'')+
       ' · '+Math.round(st.fps)+' FPS agora. Acima de 100% só vale em telas de alta densidade; a resolução dinâmica tira pixels só quando a'+
       ' placa de vídeo não dá conta'+(TQ?'':' (este navegador não informa o tempo da GPU: ela reduz, confere e volta se não adiantar)')+'.';}
-  const hdr=settingsEl&&settingsEl.querySelector('.panel header');if(hdr)hdr.after(sec);
+  const pgG=$('setGraficos'),hdr=settingsEl&&settingsEl.querySelector('.panel header');   // aba Gráficos das Configurações
+  if(pgG)pgG.appendChild(sec);else if(hdr)hdr.after(sec);
   const _rsG=renderSettings;renderSettings=function(){_rsG();syncUI();};   // abrir o painel / trocar a tecla do FPS atualiza tudo
 
   /* ---- por quadro (antes do render) ---- */
@@ -6679,6 +6744,152 @@ const GFX=(function(){const S=GFXS,gl=renderer.getContext(),$=id=>document.getEl
   apply(true);collect();
   return {frameStart,frameEnd,gpuBegin,frame,pause(){lastT=0;},S,apply:()=>{apply();save();syncUI();},stats,syncUI,DL};})();
 window._GFX=GFX;
+
+/* ===================== SOM E MÚSICA — mixer único (efeitos + música) e abas das Configurações =====================
+   Um só AudioContext, criado no 1º gesto do jogador (antes disso o navegador não deixa tocar, e criar cedo pode travar a
+   thread principal no Windows): master ← efeitos (motor, vento, impacto, aviso, fogos) + música. Volumes em localStorage.
+   Música (lib/musica.js): quatro peças gravadas em segundo plano que trocam sozinhas com a situação — capa e começo da
+   aventura = abertura, a pé / pedalando / cavalgando = passeio, 14-bis no ar = voo, Configurações e mapa = menus.
+   Hooks: window._SOM.ac() (contexto), .out(nome) (saída de um efeito), .duck(s,nível) (abaixa a música). */
+const SOM=(function(){
+  const KEY='14bis-som-v1',TABKEY='14bis-config-aba',$=id=>document.getElementById(id),FX=['motor','vento','impacto','aviso','fogos'];
+  const DEF={geral:0.8,efeitos:0.9,motor:1,vento:0.8,impacto:1,aviso:0.9,fogos:0.8,musica:1,volMus:0.55,bg:1,faixas:{abertura:1,passeio:1,voo:1,menu:1}};
+  const S=JSON.parse(JSON.stringify(DEF));
+  try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'){for(const k in DEF)if(k!=='faixas'&&typeof s[k]==='number')S[k]=s[k];
+    if(s.faixas)for(const k in DEF.faixas)if(typeof s.faixas[k]==='number')S.faixas[k]=s.faixas[k];}}catch(_){}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(_){}}
+  const MUS=window.Musica1906||null,TR={};
+  if(MUS)for(const f of MUS.faixas)TR[f.id]={meta:f,buf:null,raw:null,pend:null,fail:0,pos:0,dur:f.dur,bar:1};
+  const USO={abertura:'Na capa e no começo da aventura',passeio:'Caminhando, pedalando e cavalgando',voo:'Com o 14-bis no ar',menu:'Configurações e mapa'};
+  const NOQUIET=QS.has('shot')||QS.has('cam')||QS.has('fly14')||navigator.webdriver;
+
+  /* ---- mixer ---- */
+  let ctx=null,master,fxBus,musBus,duckG;const bus={};
+  function ac(){if(!ctx){const A=window.AudioContext||window.webkitAudioContext;if(!A)return null;try{ctx=new A();}catch(e){return null;}
+      master=ctx.createGain();master.connect(ctx.destination);fxBus=ctx.createGain();fxBus.connect(master);
+      for(const k of FX){const g=ctx.createGain();g.connect(fxBus);bus[k]=g;}
+      duckG=ctx.createGain();duckG.connect(master);musBus=ctx.createGain();musBus.connect(duckG);levels(true);}
+    if(ctx.state==='suspended'&&!(S.bg&&document.hidden)){const p=ctx.resume();if(p&&p.catch)p.catch(()=>{});}
+    return ctx;}
+  function levels(now){if(!ctx)return;const t=ctx.currentTime,set=(g,v)=>{if(now)g.gain.value=v;else g.gain.setTargetAtTime(v,t,0.04);};
+    set(master,S.geral);set(fxBus,S.efeitos);for(const k of FX)set(bus[k],S[k]);set(musBus,S.volMus);}
+  function out(n){return ac()?(bus[n]||fxBus):null;}
+  function duck(sec,lv){if(!ctx)return;const t=ctx.currentTime,g=duckG.gain;g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);
+    g.setTargetAtTime(lv,t,0.15);g.setTargetAtTime(1,t+sec,0.7);}
+  document.addEventListener('visibilitychange',()=>{if(!ctx||!S.bg)return;const p=document.hidden?ctx.suspend():ctx.resume();if(p&&p.catch)p.catch(()=>{});});
+  const unlock=()=>{if(ac())tick();};                        // 1º clique/tecla libera o áudio (política de autoplay)
+  addEventListener('pointerdown',unlock,true);addEventListener('keydown',unlock,true);
+
+  /* ---- música: gravação em segundo plano e troca com fade ---- */
+  function prep(id){const T=TR[id];if(!T||T.buf||T.raw||T.pend||T.fail)return;
+    T.pend=MUS.render(id,{sr:22050,par:id==='abertura'?3:2,yieldMs:30})
+      .then(r=>{T.raw=r;T.dur=r.dur;T.bar=r.bar;T.pend=null;tick();ui();})
+      .catch(e=>{T.pend=null;T.fail=1;console.warn('Música '+id+':',e);});}
+  function toBuf(T){const r=T.raw,b=ctx.createBuffer(2,r.len,r.sr);
+    for(let i=0;i<2;i++){if(b.copyToChannel)b.copyToChannel(r.ch[i],i);else b.getChannelData(i).set(r.ch[i]);}T.buf=b;T.raw=null;}
+  let cur=null,src=null,gain=null,t0=0,off0=0,preview=null,introOn=false,introDone=false,wantId=null,wantT=0,lastAir=-99,bigT=0;
+  const played=()=>src?off0+ctx.currentTime-t0:0;             // segundos desde o começo do buffer (sem dar a volta)
+  function stop(){if(!src)return;const T=TR[cur],now=ctx.currentTime,g=gain.gain,s=src;T.pos=played()%T.dur;
+    g.cancelScheduledValues(now);g.setValueAtTime(g.value,now);g.linearRampToValueAtTime(0,now+1.8);try{s.stop(now+1.9);}catch(_){}
+    src=gain=null;cur=null;}
+  function play(id,fromStart){const T=TR[id];if(!T||!T.buf){prep(id);return false;}
+    stop();const now=ctx.currentTime,fi=fromStart?0.25:1.6;
+    let off=fromStart?0:Math.floor((T.pos||0)/T.bar)*T.bar;if(off>T.dur-1)off=0;   // retoma do começo do compasso em que parou
+    src=ctx.createBufferSource();src.buffer=T.buf;src.loop=true;gain=ctx.createGain();
+    gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(1,now+fi);src.connect(gain);gain.connect(musBus);
+    src.start(now+0.03,off);t0=now+0.03;off0=off;cur=id;return true;}
+  const coverOn=()=>{const h=$('help');return !!h&&getComputedStyle(h).display!=='none';};
+  function want(){if(!MUS||!S.musica)return null;const now=performance.now()/1000;
+    if(preview&&!settingsOpen)preview=null;if(preview)return preview;
+    if(bigOpen){if(!bigT)bigT=now;}else bigT=0;
+    if(settingsOpen||(bigT&&now-bigT>1.2))return S.faixas.menu?'menu':null;     // espiar o mapa rapidinho não troca a música
+    if(coverOn())return S.faixas.abertura?'abertura':null;
+    if(!introDone&&S.faixas.abertura&&!TR.abertura.fail)return 'abertura';
+    const P=window._PLT;if(P&&P.on&&P.air)lastAir=now;
+    if(P&&P.on&&now-lastAir<6)return S.faixas.voo?'voo':null;                   // toque e arremetida não interrompe o voo
+    return S.faixas.passeio?'passeio':null;}
+  function tick(){if(!ctx)return;for(const id in TR)if(TR[id].raw)toBuf(TR[id]);
+    // depois da capa a abertura toca inteira uma vez; no acorde final passa a vez para o jogo
+    if(cur==='abertura'&&!preview&&!coverOn()&&played()>=TR.abertura.dur-1.0)introDone=true;
+    const w=want(),now=performance.now()/1000;if(w!==wantId){wantId=w;wantT=now;}
+    if(w===cur)return;
+    if(cur&&!preview&&cur!=='abertura'&&now-wantT<0.7)return;                  // espera a situação firmar
+    if(w===null){stop();return;}
+    const first=w==='abertura'&&!introOn;
+    if(play(w,first||w===preview)&&first)introOn=true;}
+  setInterval(tick,200);
+  if(MUS&&S.musica&&!NOQUIET)addEventListener('load',()=>setTimeout(function next(){      // grava as quatro peças, uma por vez
+    const id=['abertura','passeio','menu','voo'].find(k=>!TR[k].buf&&!TR[k].raw&&!TR[k].fail);if(!id)return;
+    if(!TR[id].pend)prep(id);if(TR[id].pend)TR[id].pend.then(()=>setTimeout(next,400));},1200));
+  function setMusic(on,toast){S.musica=on?1:0;save();if(on&&ac()){const id=want();if(id)prep(id);}tick();ui();
+    if(toast)msg14(on?'🎵 Música ligada':'🎵 Música desligada','Tecla '+keyName(bindings.music)+' · volume e faixas em Configurações › Música.',2.5);}
+  addEventListener('keydown',e=>{if(e.code!==bindings.music||captureAction||e.repeat||settingsOpen)return;e.preventDefault();setMusic(!S.musica,true);});
+
+  /* ---- abas das Configurações ---- */
+  const tabs=[...document.querySelectorAll('#settings .set-tabs [role=tab]')];
+  function showTab(name,focus){for(const b of tabs){const on=b.dataset.tab===name,pg=$(b.getAttribute('aria-controls'));
+      b.setAttribute('aria-selected',on?'true':'false');b.tabIndex=on?0:-1;if(pg)pg.classList.toggle('on',on);if(on&&focus)b.focus();}
+    try{localStorage.setItem(TABKEY,name);}catch(_){}ui();}
+  tabs.forEach((b,i)=>{b.addEventListener('click',()=>showTab(b.dataset.tab));
+    b.addEventListener('keydown',e=>{const d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;if(!d)return;e.preventDefault();e.stopPropagation();
+      showTab(tabs[(i+d+tabs.length)%tabs.length].dataset.tab,true);});});
+
+  /* ---- abas Efeitos e Música ---- */
+  const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;};
+  const pct=v=>Math.round(v*100)+'%';
+  function slider(host,key,label,sub,after){const row=el('div','snd-row'),name=el('span'),lb=el('label',null,label),r=el('input'),o=el('output');
+    r.type='range';r.min=0;r.max=100;r.step=1;r.id=lb.htmlFor='snd-'+key;r.value=Math.round(S[key]*100);o.textContent=pct(S[key]);
+    name.appendChild(lb);if(sub)name.appendChild(el('small',null,sub));
+    r.addEventListener('input',()=>{S[key]=r.value/100;o.textContent=pct(S[key]);levels();if(after)after();});r.addEventListener('change',save);
+    row.append(name,r,o);host.appendChild(row);return r;}
+  function toggle(host,label,sub,get,set,on,off){const row=el('div','snd-tog'),name=el('span',null,label),b=el('button','switch');b.type='button';b.setAttribute('role','switch');
+    if(sub)name.appendChild(el('small',null,sub));const sync=()=>{const v=get();b.setAttribute('aria-checked',v?'true':'false');b.textContent=v?on:off;};
+    b.addEventListener('click',()=>{set(!get());sync();});row.append(name,b);host.appendChild(row);return sync;}
+  const pe=$('setEfeitos'),pm=$('setMusica'),syncs=[];let musVol=null,nowEl=null;const trackEls={};
+  if(pe){pe.appendChild(el('p',null,'Volumes dos sons do jogo. A música tem a sua própria aba.'));
+    pe.appendChild(el('h3',null,'Volume'));slider(pe,'geral','Volume geral','Tudo o que o jogo toca, música incluída');
+    slider(pe,'efeitos','Efeitos sonoros','Todos os efeitos abaixo de uma vez');
+    pe.appendChild(el('h3',null,'Efeitos'));
+    slider(pe,'motor','Motor do 14-bis','Antoinette V8 e hélice · no voo, '+keyName(bindings.sound)+' liga e desliga');
+    slider(pe,'vento','Vento no voo','Cresce com a velocidade do ar');
+    slider(pe,'impacto','Batidas e quebras','Bambu estalando e seda rasgando quando o 14-bis bate');
+    slider(pe,'aviso','Sinos e fanfarras','Avisos e festa da missão');
+    slider(pe,'fogos','Fogos de artifício','A festa em Copacabana');
+    pe.appendChild(el('h3',null,'Outros'));
+    syncs.push(toggle(pe,'Pausar o som com a aba escondida','Música e efeitos param quando você troca de aba ou minimiza',()=>S.bg,v=>{S.bg=v?1:0;save();},'Pausar','Continuar'));
+    const act=el('div','settings-actions'),tb=el('button',null,'🔔 Testar efeitos');tb.type='button';
+    tb.addEventListener('click',()=>{const c=ac();if(!c)return;const t=c.currentTime;
+      for(const [f,d,v] of [[1318,0,.09],[1976,.05,.05],[1568,.35,.07]]){const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;
+        g.gain.setValueAtTime(0,t+d);g.gain.linearRampToValueAtTime(v,t+d+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+d+0.9);
+        o.connect(g);g.connect(bus.aviso);o.start(t+d);o.stop(t+d+1);}});
+    act.appendChild(tb);pe.appendChild(act);}
+  if(pm){syncs.push(toggle(pm,'Música','Tecla '+keyName(bindings.music)+' liga e desliga durante o jogo',()=>S.musica,v=>setMusic(v),'Ligada','Desligada'));
+    musVol=slider(pm,'volMus','Volume da música');
+    pm.appendChild(el('h3',null,'Trilha sonora — Paris, 1906'));
+    pm.appendChild(el('p',null,'Quatro peças originais no estilo da Belle Époque francesa — marcha de banda, valsa de café, barcarola e caixinha de música —, '+
+      'tocadas por uma pequena orquestra sintetizada no próprio navegador. A música troca sozinha conforme a situação; desmarque uma faixa para deixar aquele momento em silêncio.'));
+    const list=el('div','tracks');pm.appendChild(list);
+    for(const id in TR){const T=TR[id],m=T.meta,row=el('div','track'),pb=el('button','play','▶'),info=el('div'),lab=el('label'),cb=el('input');
+      pb.type='button';pb.setAttribute('aria-label','Ouvir '+m.titulo);
+      pb.addEventListener('click',()=>{if(!ac())return;preview=preview===id?null:id;if(preview)prep(id);tick();ui();});
+      const h=el('div');h.append(el('em',null,m.nome),el('b',null,m.titulo));
+      info.append(h,el('p',null,m.desc+' · '+Math.floor(m.dur/60)+':'+String(Math.round(m.dur%60)).padStart(2,'0')+' · '+USO[id]));
+      cb.type='checkbox';cb.checked=!!S.faixas[id];cb.addEventListener('change',()=>{S.faixas[id]=cb.checked?1:0;save();tick();ui();});
+      lab.append(cb,document.createTextNode('no jogo'));row.append(pb,info,lab);list.appendChild(row);trackEls[id]={row,pb};}
+    nowEl=el('p','mus-now');nowEl.setAttribute('role','status');pm.appendChild(nowEl);}
+  const mmss=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+  function ui(){for(const f of syncs)f();if(musVol)musVol.disabled=!S.musica;
+    for(const id in trackEls){const on=cur===id,p=preview===id;trackEls[id].row.classList.toggle('playing',on);
+      trackEls[id].pb.textContent=p?'■':'▶';trackEls[id].pb.setAttribute('aria-pressed',p?'true':'false');}
+    if(!nowEl)return;const w=want(),T=w&&TR[w];
+    nowEl.textContent=!MUS?'Música indisponível (lib/musica.js não carregou).':!S.musica?'Música desligada.':!ctx?'A música começa no primeiro clique ou tecla.':
+      cur?'♪ Tocando agora: '+TR[cur].meta.titulo+' ('+TR[cur].meta.nome.toLowerCase()+') — '+mmss(played()%TR[cur].dur)+' de '+mmss(TR[cur].dur)+(preview?' · prévia: fecha junto com as Configurações':''):
+      T&&T.pend?'Preparando «'+T.meta.titulo+'»…':'Silêncio neste momento.';}
+  setInterval(()=>{if(settingsOpen)ui();},500);
+  let tab0='teclado';try{const s=localStorage.getItem(TABKEY);if(s&&tabs.some(b=>b.dataset.tab===s))tab0=s;}catch(_){}
+  if(tabs.length)showTab(tab0);
+  return {ac,out,duck,S,levels,save,setMusic,tick,get cur(){return cur;},get introDone(){return introDone;},TR};})();
+window._SOM=SOM;
 
 /* luz ambiente vinda do próprio céu (IBL): refeita ao trocar dia/noite */
 const PMREM=new THREE.PMREMGenerator(renderer);let ENVRT=null;
@@ -6709,16 +6920,16 @@ function frameWorld(dt){const t=clock.elapsedTime,P=window._PLT,pil=!!(P&&P.on);
       carga_ms:Math.round(window._loadMs||0),etapas:_TM.join(' '),cidade:WORLD.dbgTown,pr:PR,webgl2:renderer.capabilities.isWebGL2});document.body.appendChild(d);}}
 function flySpeed(){const a=player.pos.y-terrainY(player.pos.x,player.pos.z);return Math.min(60,5.6*(1+Math.max(0,a-8)/14));}
 
-const COVER=document.getElementById('help');let coverWarm=0,warmN=0;
+const COVER=document.getElementById('help');let coverWarm=0;
 function coverUp(){return !!COVER&&COVER.style.display!=='none'&&getComputedStyle(COVER).display!=='none';}
 // shaders de TODOS os materiais, inclusive dos objetos fora da tela ou escondidos (mata de perto, o que está atrás da câmera…).
 // O three.js só compila um material quando ele é desenhado pela 1ª vez, e no ANGLE/D3D11 cada um leva ~0,4 s: eram as
-// travadas dos primeiros passos, cada vez que algo novo entrava na tela. Roda uma vez no 3º quadro (~2 s, com a capa aberta).
+// travadas dos primeiros passos, cada vez que algo novo entrava na tela. Roda uma vez, colado ao 1º quadro (ver o fim do script).
 // Com o pós-processamento a cena vai para um alvo linear, não para a tela sRGB: compila para um alvo igual, senão sai outra variante.
 function precompile(){const rt=POST?new THREE.WebGLRenderTarget(1,1):null;
-  renderer.setRenderTarget(rt);renderer.compile(scene,camera);renderer.setRenderTarget(null);if(rt)rt.dispose();}
+  renderer.setRenderTarget(rt);renderer.compile(scene,camera);renderer.setRenderTarget(null);if(rt)rt.dispose();
+  if(POST&&POST.warm)POST.warm();}
 function animate(){requestAnimationFrame(animate);
-  if(++warmN===3&&!QS.has('shot')&&!QS.has('cam')&&!QS.has('dbg'))precompile();   // fotos e medições automáticas não esperam
   // capa de abertura: é uma foto opaca por cima do canvas. Depois de 60 quadros de aquecimento (shaders compilados,
   // texturas na GPU, veículos assentados) o mundo não é simulado nem desenhado por trás dela — senão a GPU
   // renderiza sombras, MSAA e bloom a 60 quadros/s para ninguém ver. ?dbg segue rodando para medir a cena.
@@ -6767,7 +6978,7 @@ function animate(){requestAnimationFrame(animate);
   if(window._PLT&&window._PLT.on){
     window._cam14(dt);
   }else{
-    {const fv=thirdP?70:70/(WALKCAM[WALKCAM_1P].z||1);if(Math.abs(camera.fov-fv)>0.01){camera.fov=fv;camera.updateProjectionMatrix();}}
+    {const fv=thirdP?(WALKCAM[walkCam].d>0&&WALKCAM[walkCam].fov||70):70/(WALKCAM[WALKCAM_1P].z||1);if(Math.abs(camera.fov-fv)>0.01){camera.fov=fv;camera.updateProjectionMatrix();}}
     avatar.visible=thirdP;
     if(RIDE.cur)RIDE.place();                         // montado: o avatar senta no veículo (pose em sdRide)
     else{avatar.position.set(player.pos.x,player.pos.y-player.eye,player.pos.z);
@@ -6775,8 +6986,12 @@ function animate(){requestAnimationFrame(animate);
       stepAvatar(dt,mv.lengthSq()>1e-8&&!player.fly);GRAB14.arm();}
     if(thirdP){                                      // câmera atrás do Santos Dumont, estilo GTA
       const wc=WALKCAM[walkCam].d>0?WALKCAM[walkCam]:WALKCAM[0],D=walkCamDist(wc)+RIDE.camD();   // montado: mais longe, para ver o veículo
-      let off,aim=null,tilt=0;
-      if(wc.o){                                      // bem perto: logo atrás da cabeça, mirando para onde ele olha
+      let off,aim=null,tilt=0,O=player.pos;
+      if(wc.v){                                      // corpo inteiro: mira o meio do corpo (do chapéu aos pés), girando em volta dele
+        const a=player.yaw+wc.oy,ce=Math.cos(wc.op);
+        O=V3(avatar.position.x,avatar.position.y+0.8,avatar.position.z);aim=O;
+        off=V3(-Math.sin(a)*ce*D,Math.sin(wc.op)*D,-Math.cos(a)*ce*D);
+      }else if(wc.o){                                      // bem perto: logo atrás da cabeça, mirando para onde ele olha
         const cp=Math.cos(player.pitch),lx=-Math.sin(player.yaw)*cp,ly=Math.sin(player.pitch),lz=-Math.cos(player.yaw)*cp;
         const rx=Math.cos(player.yaw),rz=-Math.sin(player.yaw),sx=rx*(wc.s||0),sy=-0.1,sz=rz*(wc.s||0);
         off=V3(sx-lx*D,sy-ly*D+0.12,sz-lz*D);
@@ -6785,12 +7000,13 @@ function animate(){requestAnimationFrame(animate);
         tilt=(ho-ho0)/k;                             // a altura travou no limite: o resto do mouse gira a câmera (olhar o céu)
         off=V3(Math.sin(player.yaw)*D,ho,Math.cos(player.yaw)*D);}
       const L=off.length(),dirC=off.clone().normalize();
-      ray.set(player.pos,dirC);ray.far=L+0.2;        // encolhe dentro de casa: fica logo atrás dele
+      ray.set(O,dirC);ray.far=L+0.2;                 // encolhe dentro de casa: fica logo atrás dele
       const hits=ray.intersectObjects(solids,false);
       let dist=hits.length?Math.max(wc.o?0.35:0.8,hits[0].distance-0.18):L;
-      for(let t=0.4;t<dist;t+=0.3){const x=player.pos.x+dirC.x*t,y=player.pos.y+dirC.y*t,z=player.pos.z+dirC.z*t;   // e não entra nas casas da cidade
+      for(let t=0.4;t<dist;t+=0.3){const x=O.x+dirC.x*t,y=O.y+dirC.y*t,z=O.z+dirC.z*t;   // e não entra nas casas da cidade
         const o=hitColl(x,y,z,0.15);if(o&&o.n!=='uma ponte'&&o.n!=='a ponte da ferrovia'){dist=Math.max(0.8,t-0.25);break;}}
-      camera.position.copy(player.pos).addScaledVector(dirC,dist);
+      camera.position.copy(O).addScaledVector(dirC,dist);
+      if(wc.v){const gy=terrainY(camera.position.x,camera.position.z)+0.2;if(camera.position.y<gy&&O.y>gy)camera.position.y=gy;}   // olhando de baixo: não afunda no chão
       if(aim)camera.lookAt(aim);else{camera.lookAt(player.pos.x,player.pos.y+0.05,player.pos.z);if(tilt)camera.rotateX(tilt);}
     }else{
       camera.position.copy(player.pos);
@@ -6806,6 +7022,9 @@ function animate(){requestAnimationFrame(animate);
   if(!window._ok){window._ok=true;const d=document.createElement('div');d.id='sceneok';d.style.display='none';
     d.textContent='SCENE_OK meshes='+scene.children.length;document.body.appendChild(d);}}
 animate();
+// logo depois do 1º quadro e ainda dentro do carregamento: a capa aparece antes do mundo ficar pronto, e um clique em
+// "Começar aventura" feito durante a montagem só é atendido depois daqui — senão os ~2,5 s de compilação caem já no jogo
+if(!QS.has('shot')&&!QS.has('cam')&&!QS.has('dbg'))precompile();   // fotos e medições automáticas não esperam
 </script>
 </body>
 </html>
