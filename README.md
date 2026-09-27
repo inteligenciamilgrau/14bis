@@ -38,7 +38,8 @@ O jogo é 100% estático, então basta servir a raiz do repositório:
    `…/NOME-DO-REPO/v2/` (versão 2) ou `…/NOME-DO-REPO/v1/` (versão 1).
 
 ## Controles
-No jogo, abra **⚙ Configurações** para consultar e remapear as teclas, além de
+No jogo, abra **⚙ Configurações** — com as abas **Teclado**, **Gráficos**, **Efeitos**,
+**Música** e **Viagem** — para remapear as teclas, ajustar a qualidade e os volumes e
 acessar o mapa, o modo noturno e os destinos. As preferências ficam salvas no navegador.
 
 | Tecla | Ação |
@@ -59,6 +60,7 @@ acessar o mapa, o modo noturno e os destinos. As preferências ficam salvas no n
 | `Q / Z` | pilotando: ajustar o compensador |
 | `I / O` | pilotando: ignição / som do motor |
 | `N` | dia ↔ noite |
+| `K` | liga/desliga a música |
 | `F3` | mostra/esconde o contador de FPS (quadros por segundo, 1% mais lentos, tempo de CPU e GPU, draw calls, resolução) |
 | `1`–`0` | teleporte: Jardim, Rua & Relógio, Porão, Sala, Mezanino, Passarela, Observatório, **Campo de Bagatelle**, **Centro** (Catedral), **Mirante** (capela do morro) |
 | `Esc` | abre/fecha Configurações e fecha o mapa |
@@ -71,6 +73,23 @@ de FPS. Na primeira vez o jogo escolhe o nível pela placa de vídeo; depois val
 você salvar. A resolução dinâmica só reduz os pixels quando o gargalo é a placa de
 vídeo. Sombras desligadas no meio do jogo param de ser desenhadas na hora; a economia
 completa vem ao recarregar a página.
+
+### Som e trilha sonora
+A trilha é original, no estilo da Belle Époque francesa de 1906, e é tocada por uma
+pequena orquestra sintetizada no próprio navegador ([lib/musica.js](lib/musica.js), sem arquivos de áudio).
+São quatro peças que trocam sozinhas conforme a situação:
+
+| Peça | Estilo | Quando toca |
+|---|---|---|
+| *L'Oiseau de Proie* | marcha-galope de banda — novidade e aventura | capa e começo da aventura (inteira, uma vez) |
+| *Promenade sous les hortensias* | valsa de café com acordeão — positiva e tranquila | a pé, pedalando, cavalgando |
+| *Barcarolle des nuages* | barcarola com harpa e flauta | com o 14-bis no ar |
+| *Boîte à musique* | gavota de caixinha de música (celesta) | Configurações e mapa |
+
+Em **⚙ Configurações › Música** dá para ouvir cada peça, mudar o volume e deixar um
+momento em silêncio; em **› Efeitos** ficam o volume geral e os do motor, do vento,
+das batidas, dos sinos e dos fogos. A música começa no primeiro clique ou tecla
+(regra dos navegadores) e as peças são gravadas em segundo plano depois que o jogo carrega.
 
 ## ✉️ Missão: "Por céus nunca dantes navegados"
 

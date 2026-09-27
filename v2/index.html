@@ -96,8 +96,10 @@
     color:#cfd8c2;font:600 13.5px Georgia,serif;padding:8px 14px}
   #settings .set-tabs button:hover{background:#1c3a2c;color:#f7f1df}
   #settings .set-tabs button[aria-selected="true"]{background:#1b3529;color:#f7e3b0;border-color:#b3945966;box-shadow:0 1px 0 #1b3529}
-  #settings .set-page{display:none;min-height:360px}
+  #settings .panel{height:min(88vh,800px)}                  /* altura fixa: as abas não pulam ao trocar de seção */
+  #settings .set-page{display:none}
   #settings .set-page.on{display:block}
+  #settings #setMusica{padding-top:10px}
   #settings .set-page>p:first-child{margin-top:14px}
   #settings .snd-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,1.1fr) 46px;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid #ffffff16}
   #settings .snd-row span{font-size:13px}
@@ -6856,7 +6858,7 @@ const SOM=(function(){
     slider(pe,'aviso','Sinos e fanfarras','Avisos e festa da missão');
     slider(pe,'fogos','Fogos de artifício','A festa em Copacabana');
     pe.appendChild(el('h3',null,'Outros'));
-    syncs.push(toggle(pe,'Pausar o som com a aba escondida','Música e efeitos param quando você troca de aba ou minimiza',()=>S.bg,v=>{S.bg=v?1:0;save();},'Pausar','Continuar'));
+    syncs.push(toggle(pe,'Pausar o som com a aba escondida','Música e efeitos param quando você troca de aba ou minimiza',()=>S.bg,v=>{S.bg=v?1:0;save();},'Ligado','Desligado'));
     const act=el('div','settings-actions'),tb=el('button',null,'🔔 Testar efeitos');tb.type='button';
     tb.addEventListener('click',()=>{const c=ac();if(!c)return;const t=c.currentTime;
       for(const [f,d,v] of [[1318,0,.09],[1976,.05,.05],[1568,.35,.07]]){const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;
@@ -6888,7 +6890,7 @@ const SOM=(function(){
   setInterval(()=>{if(settingsOpen)ui();},500);
   let tab0='teclado';try{const s=localStorage.getItem(TABKEY);if(s&&tabs.some(b=>b.dataset.tab===s))tab0=s;}catch(_){}
   if(tabs.length)showTab(tab0);
-  return {ac,out,duck,S,levels,save,setMusic,tick,get cur(){return cur;},get introDone(){return introDone;},TR};})();
+  return {ac,out,duck,S,levels,save,setMusic,tick,skipIntro(){introDone=true;},get cur(){return cur;},get introDone(){return introDone;},TR};})();
 window._SOM=SOM;
 
 /* luz ambiente vinda do próprio céu (IBL): refeita ao trocar dia/noite */
