@@ -4969,7 +4969,7 @@ window._board14=function(){PLT.on=true;player.fly=false;player.vy=0;
   fl.style.cssText="display:block;position:absolute;left:12px;bottom:10px;top:auto;padding:0;background:none;border:none;z-index:4;"+
     "pointer-events:none;filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))";PAN14.mount(fl);pan14Fit();document.body.classList.add("pil14");SND14.init();
   if(PLT.wreck)msg14('O 14-bis está destroçado',PLT.wreck+' Aperte '+key14('resetPlane','R')+' para voltar ao Campo de Bagatelle com o avião reconstruído.',8);
-  else msg14('A bordo do 14-bis!','Ajuste o gás para dar a partida, controle o canard e incline o corpo para acionar os ailerons. Veja os comandos em Configurações.',8);};
+  else msg14('A bordo do 14-bis!','Ajuste o gás para dar a partida, controle o canard e incline o corpo para acionar os ailerons — cada comando fica onde você o deixar, como na mão. Veja as teclas em Configurações.',8);};
 window._exit14=function(){PLT.on=false;S14.run=false;PLT.thr=0;
   thirdP=!!PLT.wasTP;updMode();
   const fl=document.getElementById("fly");fl.style.cssText="";fl.innerHTML="";document.body.classList.remove("pil14","side14");
@@ -4983,16 +4983,21 @@ window._exit14=function(){PLT.on=false;S14.run=false;PLT.thr=0;
 function em14(n){const m=/^(a|o|as|os|uma|um) (.*)$/.exec(n);if(!m)return "em "+n;   // "em as árvores" → "nas árvores"
   return ({a:"na",o:"no",as:"nas",os:"nos",uma:"numa",um:"num"})[m[1]]+" "+m[2];}
 function hdgOf(q){const fw=V3(0,0,-1).applyQuaternion(q);return Math.atan2(-fw.x,-fw.z);}
-function ramp14(v,t,up,dn,dt){const r=(Math.abs(t)>Math.abs(v)&&Math.sign(t)!==-Math.sign(v))?up:dn;
-  return v<t?Math.min(t,v+r*dt):Math.max(t,v-r*dt);}
+// comando manual: a tecla move a peça aos poucos e ela FICA onde parou (alavanca, roda e arnês não voltam sozinhos) — toque curto
+// = ajuste fino, segurar acelera; ao passar pelo neutro ela para no 0 por um instante (um "dente"), para achar o centro fácil
+function stick14(k,dir,rate,dt){const s=PLT.stk||(PLT.stk={}),c=s[k]||(s[k]={h:0,d:0});
+  if(!dir){c.h=0;c.d=0;return;}
+  const v=PLT[k],first=c.h===0;c.h+=dt;if(c.d>0){c.d-=dt;return;}
+  const n=Math.max(-1,Math.min(1,v+dir*((first?0.03:0)+rate*Math.min(1,0.4+c.h*1.2)*dt)));
+  if(v!==0&&Math.sign(n)!==Math.sign(v)){PLT[k]=0;c.d=0.35;}else PLT[k]=n;}
 window._tick14=function(dt){
   PLT.t+=dt;
   if(PLT._ext!==undefined&&PLT.spd!==PLT._ext&&PLT.air&&S14.v.lengthSq()<0.01)window._fly14();   // alguém pediu voo direto
   if(PLT.wreck){DMG14.step(dt);hud14(dt);return;}              // destroçado: os comandos não respondem; o que sobrou cai (R volta ao campo)
-  // [41] comandos: alavanca (canard ↑↓), roda de direção à esquerda (←→), corpo (A/D → ailerons octogonais), gás (W/S)
+  // [41] comandos (ficam onde o piloto os deixa — ver stick14): alavanca (canard ↑↓), roda de direção à esquerda (←→), corpo (A/D → ailerons octogonais), gás (W/S)
   const up=(held('elevatorUp')?1:0)-(held('elevatorDown')?1:0),rd=(held('rudderLeft')?1:0)-(held('rudderRight')?1:0),
     ln=(held('right')?1:0)-(held('left')?1:0);
-  PLT.lev=ramp14(PLT.lev,up,1.6,2.6,dt);PLT.rud=ramp14(PLT.rud,rd,1.8,2.8,dt);PLT.lean=ramp14(PLT.lean,ln,2.2,2.6,dt);
+  stick14('lev',up,0.8,dt);stick14('rud',rd,0.9,dt);stick14('lean',ln,1.0,dt);
   if(held('forward'))PLT.thr=Math.min(1,PLT.thr+dt*0.5);
   if(held('back'))PLT.thr=Math.max(0,PLT.thr-dt*0.7);
   if(held('trimUp'))PLT.trim=Math.min(TRIM14.de+6*D14,PLT.trim+dt*1.2*D14);
