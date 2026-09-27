@@ -6709,9 +6709,16 @@ function frameWorld(dt){const t=clock.elapsedTime,P=window._PLT,pil=!!(P&&P.on);
       carga_ms:Math.round(window._loadMs||0),etapas:_TM.join(' '),cidade:WORLD.dbgTown,pr:PR,webgl2:renderer.capabilities.isWebGL2});document.body.appendChild(d);}}
 function flySpeed(){const a=player.pos.y-terrainY(player.pos.x,player.pos.z);return Math.min(60,5.6*(1+Math.max(0,a-8)/14));}
 
-const COVER=document.getElementById('help');let coverWarm=0;
+const COVER=document.getElementById('help');let coverWarm=0,warmN=0;
 function coverUp(){return !!COVER&&COVER.style.display!=='none'&&getComputedStyle(COVER).display!=='none';}
+// shaders de TODOS os materiais, inclusive dos objetos fora da tela ou escondidos (mata de perto, o que está atrás da câmera…).
+// O three.js só compila um material quando ele é desenhado pela 1ª vez, e no ANGLE/D3D11 cada um leva ~0,4 s: eram as
+// travadas dos primeiros passos, cada vez que algo novo entrava na tela. Roda uma vez no 3º quadro (~2 s, com a capa aberta).
+// Com o pós-processamento a cena vai para um alvo linear, não para a tela sRGB: compila para um alvo igual, senão sai outra variante.
+function precompile(){const rt=POST?new THREE.WebGLRenderTarget(1,1):null;
+  renderer.setRenderTarget(rt);renderer.compile(scene,camera);renderer.setRenderTarget(null);if(rt)rt.dispose();}
 function animate(){requestAnimationFrame(animate);
+  if(++warmN===3&&!QS.has('shot')&&!QS.has('cam')&&!QS.has('dbg'))precompile();   // fotos e medições automáticas não esperam
   // capa de abertura: é uma foto opaca por cima do canvas. Depois de 60 quadros de aquecimento (shaders compilados,
   // texturas na GPU, veículos assentados) o mundo não é simulado nem desenhado por trás dela — senão a GPU
   // renderiza sombras, MSAA e bloom a 60 quadros/s para ninguém ver. ?dbg segue rodando para medir a cena.
