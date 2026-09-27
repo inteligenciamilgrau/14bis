@@ -849,8 +849,14 @@ function forestAt(x,z){return TER.cellQ(TER.FO,x,z);}
 function valleyAt(x,z){return TER.cellQ(TER.DV,x,z);}
 
 // anel distante: a serra continua até o horizonte (9 km), sumindo na névoa
-(function farRing(){const NA=256,NR=44,R0=2360,R1=9000,nv=(NA+1)*(NR+1);
+const FAR={R0:2360,y:()=>-1e9};                      // FAR.y(x,z): altura EXATA do anel (mesmos triângulos da malha)
+(function farRing(){const NA=256,NR=44,R0=FAR.R0,R1=9000,nv=(NA+1)*(NR+1);
   const pos=new Float32Array(nv*3),col=new Float32Array(nv*3),info=[];
+  FAR.y=function(x,z){const r=Math.hypot(x,z),j=Math.floor(Math.log(r/R0)/Math.log(R1/R0)*NR);if(!(j>=0&&j<NR))return -1e9;
+    const rj=R0*Math.pow(R1/R0,j/NR),fk=(r-rj)/(R0*Math.pow(R1/R0,(j+1)/NR)-rj);
+    let a=Math.atan2(z,x)/(Math.PI*2)*NA;if(a<0)a+=NA;const i=Math.min(NA-1,Math.floor(a)),fa=a-i;
+    const v00=j*(NA+1)+i,v10=v00+1,v01=v00+NA+1,v11=v01+1,Y=v=>pos[v*3+1];
+    return fa+fk<=1?Y(v00)+fa*(Y(v10)-Y(v00))+fk*(Y(v01)-Y(v00)):Y(v11)+(1-fa)*(Y(v01)-Y(v11))+(1-fk)*(Y(v10)-Y(v11));};
   for(let k=0;k<=NR;k++){const r=R0*Math.pow(R1/R0,k/NR);for(let a=0;a<=NA;a++){const t=a/NA*Math.PI*2,x=Math.cos(t)*r,z=Math.sin(t)*r;
     const I=worldInfo(x,z),o=(k*(NA+1)+a)*3;pos[o]=x;pos[o+1]=I.h-(r<2650?2.5:0);pos[o+2]=z;info.push([I.dv,I.fl]);}}
   const idx=new Uint32Array(NA*NR*6);let q=0;
@@ -864,6 +870,8 @@ function valleyAt(x,z){return TER.cellQ(TER.DV,x,z);}
     col[v*3]=BC.r;col[v*3+1]=BC.g;col[v*3+2]=BC.b;}
   geo.setAttribute('color',new THREE.BufferAttribute(col,3));geo.computeBoundingSphere();
   const m=new THREE.Mesh(geo,TER_MAT);m.receiveShadow=true;m.matrixAutoUpdate=false;scene.add(m);})();
+// o chão que se VÊ: além de ~2.440 m a malha afunda sob o anel e o anel vira o chão (voo, colisão, picos da serra)
+function groundY(x,z){const t=terrainY(x,z);return x*x+z*z<FAR.R0*FAR.R0?t:Math.max(t,FAR.y(x,z));}
 
 
 /* rua de baixo, calçada, relógio de flores, postes */
@@ -2315,7 +2323,7 @@ function granitePeak(x,z,H,R0,lean,seed){const pts=[];for(let i=0;i<=28;i++){con
   const g=new THREE.LatheGeometry(pts,16),p=g.attributes.position;
   for(let i=0;i<p.count;i++){const px=p.getX(i),py=p.getY(i),pz=p.getZ(i),t=py/H,an=Math.atan2(pz,px),k=1+0.16*pn(an*2.2+seed,t*7);
     p.setXYZ(i,px*k+lean[0]*t*t*H,py,pz*k+lean[1]*t*t*H);}
-  g.computeVertexNormals();const y=terrainY(x,z);const m=lmesh(g,WM.granite,x,y-R0*0.35,z);
+  g.computeVertexNormals();const y=groundY(x,z);const m=lmesh(g,WM.granite,x,y-R0*0.35,z);   // groundY: a agulha oeste fica além de 2.440 m
   for(let k=0;k<4;k++){const t0=k/4,t1=(k+1)/4,rr=R0*(1-0.62*(t0+t1)/2);
     addColl(x+lean[0]*t0*t0*H,z+lean[1]*t0*t0*H,rr*1.7,rr*1.7,0,y-R0*0.35+t0*H,y-R0*0.35+t1*H,'o Dedo de Deus');}
   return m;}
@@ -3268,7 +3276,7 @@ function FM14(opt){
 
 /* ---------- Campo de Bagatelle: o gramado da pista é a própria malha do terreno (plana no corredor RWY) ---------- */
 const FY=-5.44;                                              // topo do Campo de Bagatelle (referência de outras seções)
-function planeGround(x,z){return terrainY(x,z);}
+function planeGround(x,z){return groundY(x,z);}             // inclui o anel distante: a volta no Dedo de Deus bate na encosta de verdade
 const START14={x:-22,z:38.5,hdg:-Math.PI/2};                  // cabeceira oeste, nariz para +x (decola contra o vento leste)
 (function campoBagatelle(){                                  // [39] campo de decolagem
   const Y=x=>planeGround(x,START14.z);
@@ -3587,7 +3595,7 @@ const TRIM14=(function(){                                    // alavanca neutra 
 
 /* ---------- estado do piloto, embarque [40], prêmios [46] ---------- */
 const PLT={on:false,thr:0,spd:0,vy:0,air:false,liftP:null,liftT:0,airT:0,lean:0,lev:0,rud:0,trim:TRIM14.de,
-  crashT:0,startT:0,msgT:0,hudT:0,best:0,hops:0,vyAir:0,t:0,wasTP:true,_ext:0,ignOff:false};
+  wreck:'',wreckT:0,startT:0,msgT:0,hudT:0,best:0,hops:0,vyAir:0,t:0,wasTP:true,_ext:0,ignOff:false};
 window._PLT=PLT;
 try{PLT.best=+localStorage.getItem('b14.best')||0;}catch(e){}
 function msg14(t,x,hold){document.getElementById('capT').textContent=t;
@@ -3615,7 +3623,7 @@ function placeHelpers14(){B14.updateMatrixWorld();const hd=hdgOf(B14.quaternion)
     m.userData.side=MD14.localToWorld(V3(s[0]+(k===2?1.6:Math.sign(s[0])*1.3),0,s[1]+(k<2?0.9:0.6)));
     if(k<2)m.userData.te=[s[0],G14.wpt(1,2.6,0,0)[1]-0.065,TE];      // ponto de pega no bordo de fuga (coords de projeto)
     m.userData.aside=0;});}
-window._reset14=function(){PLT.air=false;PLT.spd=0;PLT.vy=0;PLT.thr=0;PLT.lev=PLT.rud=PLT.lean=0;PLT.crashT=0;PLT.startT=0;PLT.airT=0;
+window._reset14=function(){PLT.air=false;PLT.spd=0;PLT.vy=0;PLT.thr=0;PLT.lev=PLT.rud=PLT.lean=0;PLT.wreck='';PLT.startT=0;PLT.airT=0;
   PLT.trim=TRIM14.de;PLT._ext=0;PLT.ignOff=false;FMI.place(START14.x,START14.z,START14.hdg);S14.rpm=0;S14.run=false;sync14();placeHelpers14();
   if(PLT.on)msg14('Campo de Bagatelle','O 14-bis voltou à linha de largada, seguro pelos ajudantes. Aumente o gás para dar a partida no Antoinette.',4);};
 window._reset14();
@@ -3624,9 +3632,13 @@ window._fly14=function(){                                    // começa em pleno
   S14.p.set(x,g+12,z);const qy=new THREE.Quaternion().setFromAxisAngle(V3(0,1,0),START14.hdg);
   S14.q.copy(qy).multiply(new THREE.Quaternion().setFromAxisAngle(V3(1,0,0),al));
   S14.v.set(0,0,-11.5).applyQuaternion(qy);S14.w.set(0,0,0);S14.run=true;S14.rpm=1350;S14.hold=false;
-  PLT.thr=0.85;PLT.air=true;PLT.airT=1;PLT.liftP=S14.p.clone();PLT.liftT=PLT.t;PLT.crashT=0;sync14();PLT._ext=PLT.spd=11.5;};
-function crash14(why){if(PLT.crashT>0)return;PLT.crashT=3.2;S14.run=false;
-  msg14('💥 '+why,'O Oiseau de Proie será reconstruído no campo. Santos Dumont sacode o paletó e tenta de novo!',5);}
+  PLT.thr=0.85;PLT.air=true;PLT.airT=1;PLT.liftP=S14.p.clone();PLT.liftT=PLT.t;PLT.wreck='';sync14();PLT._ext=PLT.spd=11.5;};
+function key14(id,d){try{return keyName(bindings[id]);}catch(e){return d;}}   // tecla configurada (Configurações)
+// acidente: o avião fica destroçado onde parou (no chão, na árvore, na casa...) até o piloto pedir para voltar ao campo
+function crash14(why){if(PLT.wreck)return;PLT.wreck=why;PLT.wreckT=0;
+  S14.run=false;S14.rpm=0;S14.as=0;S14.v.set(0,0,0);S14.w.set(0,0,0);
+  PLT.thr=0;PLT.startT=0;PLT.air=false;PLT.spd=PLT._ext=0;PLT.vy=0;PLT.lev=PLT.rud=PLT.lean=0;
+  msg14('💥 '+why,'O Oiseau de Proie quebrou e ficou onde parou. Aperte '+key14('resetPlane','R')+' para voltar ao Campo de Bagatelle com o avião reconstruído, ou '+key14('board','F')+' para descer e ver o estrago.',10);}
 window._seat14=function(){B14.updateMatrixWorld();return MD14.localToWorld(V3(0,1.9,-0.6));};
 window._board14=function(){PLT.on=true;player.fly=false;player.vy=0;
   player.yaw=0;player.pitch=0;                               // a bordo: o mouse olha em volta a partir do avião
@@ -3634,7 +3646,8 @@ window._board14=function(){PLT.on=true;player.fly=false;player.vy=0;
   const fl=document.getElementById("fly");                   // painel de instrumentos de época no canto de baixo à esquerda
   fl.style.cssText="display:block;position:absolute;left:12px;bottom:10px;top:auto;padding:0;background:none;border:none;z-index:4;"+
     "pointer-events:none;filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))";PAN14.mount(fl);pan14Fit();document.body.classList.add("pil14");SND14.init();
-  msg14('A bordo do 14-bis!','Ajuste o gás para dar a partida, controle o canard e incline o corpo para acionar os ailerons. Veja os comandos em Configurações.',8);};
+  if(PLT.wreck)msg14('O 14-bis está destroçado',PLT.wreck+' Aperte '+key14('resetPlane','R')+' para voltar ao Campo de Bagatelle com o avião reconstruído.',8);
+  else msg14('A bordo do 14-bis!','Ajuste o gás para dar a partida, controle o canard e incline o corpo para acionar os ailerons. Veja os comandos em Configurações.',8);};
 window._exit14=function(){PLT.on=false;S14.run=false;PLT.thr=0;
   thirdP=!!PLT.wasTP;updMode();
   const fl=document.getElementById("fly");fl.style.cssText="";fl.innerHTML="";document.body.classList.remove("pil14","side14");
@@ -3652,7 +3665,7 @@ function ramp14(v,t,up,dn,dt){const r=(Math.abs(t)>Math.abs(v)&&Math.sign(t)!==-
 window._tick14=function(dt){
   PLT.t+=dt;
   if(PLT._ext!==undefined&&PLT.spd!==PLT._ext&&PLT.air&&S14.v.lengthSq()<0.01)window._fly14();   // alguém pediu voo direto
-  if(PLT.crashT>0){PLT.crashT-=dt;if(PLT.crashT<=0)window._reset14();hud14(dt);return;}
+  if(PLT.wreck){hud14(dt);return;}                             // destroçado: nada funciona até voltar ao campo (R)
   // [41] comandos: alavanca (canard ↑↓), roda de direção à esquerda (←→), corpo (A/D → ailerons octogonais), gás (W/S)
   const up=(held('elevatorUp')?1:0)-(held('elevatorDown')?1:0),rd=(held('rudderLeft')?1:0)-(held('rudderRight')?1:0),
     ln=(held('right')?1:0)-(held('left')?1:0);
@@ -3665,9 +3678,9 @@ window._tick14=function(dt){
   if(!S14.run&&PLT.thr>0.02&&PLT.startT<=0&&!PLT.ignOff){PLT.startT=1.3;msg14('Contato!','O mecânico gira a hélice com as mãos... o Antoinette pega!',2.5);}
   if(PLT.startT>0){PLT.startT-=dt;if(PLT.startT<=0)start=true;}
   if(S14.hold&&S14.run&&S14.rpm>1150&&PLT.thr>0.6){S14.hold=false;msg14('Soltem!','Os ajudantes largam o 14-bis — corrida de decolagem!',2.5);}
-  // curral de 2,3 km: além da serra, o vento vira o avião de volta
-  let dr=PLT.rud*10*D14;const R=Math.hypot(S14.p.x,S14.p.z);
-  if(R>2300){const back=Math.atan2(S14.p.x,S14.p.z),hd=hdgOf(S14.q);let e=back-hd;e=Math.atan2(Math.sin(e),Math.cos(e));
+  // curral de 2,3 km: além da serra, o vento vira o avião de volta — menos em volta do Dedo de Deus (850 m), para dar a volta nele
+  let dr=PLT.rud*10*D14;const R=Math.hypot(S14.p.x,S14.p.z),dDedo=Math.hypot(S14.p.x-DEDO.x,S14.p.z-DEDO.z);
+  if(R>2300&&dDedo>850){const back=Math.atan2(S14.p.x,S14.p.z),hd=hdgOf(S14.q);let e=back-hd;e=Math.atan2(Math.sin(e),Math.cos(e));
     dr=Math.max(-10*D14,Math.min(10*D14,dr+e*0.4));if(PLT.t-PLT.msgT>8){PLT.msgT=PLT.t;msg14('Limite da serra','O vento de montanha empurra o 14-bis de volta para Petrópolis.',3);}}
   const I={thr:PLT.thr,de:PLT.trim+PLT.lev*3.5*D14,dr,da:PLT.lean*20*D14,start,kill:false};
   FMI.run(dt,I);sync14();
@@ -3898,7 +3911,7 @@ function hud14(dt){PLT.hudT+=dt;if(PLT.hudT<1/30)return;const fdt=Math.min(0.2,P
   const R=9.5*D14,stall=S.as>6&&(S.canStall>0.3||S.wingStall>0.3);
   const ck=(typeof keyName==='function'&&typeof bindings!=='undefined'&&bindings.camera)?keyName(bindings.camera):'C';
   let msg,alarm=false;
-  if(PLT.crashT>0){msg='Destroçado — os mecânicos reconstroem o Oiseau de Proie...';alarm=true;}
+  if(PLT.wreck){msg='DESTROÇADO — '+key14('resetPlane','R')+': voltar ao campo · '+key14('board','F')+': descer do avião';alarm=true;}
   else if(stall){msg=S.canStall>0.3?'ESTOL DO CANARD — o nariz cai: abaixe a alavanca!':'ESTOL DAS ASAS — baixe o nariz e ganhe velocidade!';alarm=true;}
   else if(S.hold&&S.run)msg='Os ajudantes seguram o avião — gás acima de 60% para soltarem';
   else if(!S.run&&PLT.startT<=0)msg='Motor parado — aumente o gás para dar a partida'+(PLT.ignOff?' (ignição desligada)':'');
@@ -4027,6 +4040,9 @@ window._anim14=function(dt){const S=S14;
   if(S.run&&exh14T<=0){exh14T=0.16-0.08*PLT.thr;const sd=Math.random()<0.5?-1:1,z=0.19+Math.floor(Math.random()*4)*0.19;
     const ep=MD14.localToWorld(V3(sd*0.4,2.2,z));
     puff14(ep,V3(sd*0.3,0.25,0).add(ENV14.w0.clone().multiplyScalar(0.5)),0x8f9aa6,0.12,1.4,1.3);}
+  if(PLT.wreck){PLT.wreckT+=dt;                                // destroços: o Antoinette solta fumaça cinza por uns segundos
+    if(PLT.wreckT<12&&exh14T<=0){exh14T=0.2+PLT.wreckT*0.03;const ep=MD14.localToWorld(V3((Math.random()-0.5)*0.6,2.2,0.4));
+      puff14(ep,V3(0,2.2,0).add(ENV14.w0.clone().multiplyScalar(0.6)),0x6b655e,0.5,3,0.75);}}
   for(const P of PUF14){if(!P.s.visible)continue;P.life-=dt;if(P.life<=0){P.s.visible=false;continue;}
     P.s.position.addScaledVector(P.v,dt);P.v.multiplyScalar(1-dt*0.8);P.s.scale.multiplyScalar(1+dt*P.g);
     P.s.material.opacity=0.42*(P.life/P.max);}
